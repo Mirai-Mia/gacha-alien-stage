@@ -5,6 +5,29 @@
 let currentUser = null;
 let globalData = null;
 
+// --- SYNCHRONISATION SERVEUR ---
+async function refreshData() {
+    try {
+        const response = await fetch('/api/data');
+        globalData = await response.json();
+        
+        // Vérifier si un utilisateur était déjà connecté (LocalStorage)
+        const savedUserId = localStorage.getItem('gacha_userId');
+        if (savedUserId && !currentUser) {
+            const user = globalData.users.find(u => u.id === savedUserId);
+            if (user) {
+                auth.autoLogin(user);
+            }
+        } else if (currentUser) {
+            currentUser = globalData.users.find(u => u.id === currentUser.id);
+        }
+    } catch (e) {
+        console.error("Erreur de synchro:", e);
+    }
+}
+
+
+
 const rarities = {
     1: { name: "Étoile montante", stars: "★", tradeCost: 2 },
     2: { name: "Célébrité", stars: "★★", tradeCost: 5 },
@@ -153,9 +176,9 @@ const admin = {
 // --- INTERFACE UTILISATEUR ---
 const ui = {
     async loadTab(tabName) {
-        await refreshData();
+       if (!globalData) await refreshData();
         const main = document.getElementById('content-area');
-        main.innerHTML = '';
+        if (!main) return;
         
         if (tabName === 'Mon compte') {
             const avatarCard = globalData.cards.find(c => c.id === currentUser.avatarCardId);
@@ -283,14 +306,27 @@ const auth = {
         const pass = document.getElementById('login-pass').value;
         await refreshData();
         const user = globalData.users.find(u => u.id === id && u.pass === pass);
+        
         if (user) {
-            currentUser = user;
-            document.getElementById('auth-screen').classList.add('hidden');
-            document.getElementById('main-app').classList.remove('hidden');
-            document.getElementById('user-display').innerText = user.id;
-            ui.renderSidebar(user.role);
-            ui.loadTab('Bannières');
-        } else { alert("Erreur d'identifiants"); }
+            localStorage.setItem('gacha_userId', user.id); // Sauvegarde l'ID
+            this.autoLogin(user);
+        } else { 
+            alert("Erreur d'identifiants"); 
+        }
+    },
+
+    autoLogin(user) {
+        currentUser = user;
+        document.getElementById('auth-screen').classList.add('hidden');
+        document.getElementById('main-app').classList.remove('hidden');
+        document.getElementById('user-display').innerText = user.id;
+        ui.renderSidebar(user.role);
+        ui.loadTab('Bannières'); // Charge l'onglet par défaut
+    },
+
+    logout() {
+        localStorage.removeItem('gacha_userId'); // Efface la session
+        location.reload();
     }
 };
 
