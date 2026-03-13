@@ -7,40 +7,16 @@
 }
 
 body {
-    margin: 0;
-    font-family: 'Inter', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    display: flex;
-    height: 100vh; /* Prend toute la hauteur de l'écran */
-    overflow: hidden; /* Empêche le scroll sur le body entier */
-    transition: 0.3s;
+    margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text);
+    display: flex; height: 100vh; transition: 0.3s;
 }
 
 .hidden { display: none !important; }
 
 /* Sidebar */
-/* Sidebar Statique */
 .sidebar {
-    width: 250px;
-    min-width: 250px; /* Empêche la sidebar de rétrécir */
-    background: var(--panel);
-    border-right: 1px solid var(--border);
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    height: 100%; /* Toute la hauteur */
-    box-sizing: border-box;
-}
-
-/* Zone de contenu à droite qui défile */
-#content-area {
-    flex: 1; /* Prend tout l'espace restant */
-    overflow-y: auto; /* Seul ce bloc peut défiler verticalement */
-    padding: 30px;
-    height: 100%;
-    box-sizing: border-box;
+    width: 250px; background: var(--panel); border-right: 1px solid var(--border);
+    padding: 20px; display: flex; flex-direction: column; gap: 10px;
 }
 
 .nav-item {
@@ -52,6 +28,22 @@ body {
 .card-grid {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 20px; padding: 20px;
+}
+
+#main-app {
+    display: flex; /* Indispensable pour voir la sidebar et le contenu côte à côte */
+    width: 100vw;
+    height: 100vh;
+}
+
+#main-app.hidden {
+    display: none !important;
+}
+
+#content-area {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 .card {
@@ -78,15 +70,9 @@ body {
 
 
 
-.creator-container {
-    display: flex;
-    flex-wrap: wrap; /* Permet de passer à la ligne sur petit écran */
-    gap: 30px;
-    background: var(--panel);
-    padding: 25px;
-    border-radius: 15px;
-    max-width: 1000px;
-}
+.creator-container { display: flex; gap: 40px; background: var(--panel); padding: 20px; border-radius: 15px; }
+.form-group { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+.crop-zone { flex: 1; text-align: center; }
 
 #crop-canvas {
     border: 3px solid var(--accent);
@@ -254,129 +240,4 @@ body {
 .mini-avatar:hover {
     transform: scale(1.1);
     border-color: var(--accent);
-}
-/* --- VARIABLES DE COULEURS ALIEN STAGE --- */
-:root {
-    --bg: #0b0e14;
-    --panel: #1a1f26;
-    --accent: #f1c40f; /* Or pour l'admin et les 5★ */
-    --rarity-4: #9b59b6; /* Violet */
-    --rarity-5: #f39c12; /* Orange/Or */
-    --xp-color: #00d2ff;
-    --text: #ffffff;
-    --border: rgba(255, 255, 255, 0.1);
-}
-
-/* --- PROFIL & AVATAR --- */
-.profile-container {
-    animation: fadeIn 0.5s ease-out;
-}
-
-.profile-header {
-    border: 1px solid var(--border);
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    background: linear-gradient(145deg, rgba(255,255,255,0.05), rgba(0,0,0,0.2));
-}
-
-.avatar-wrapper img {
-    transition: transform 0.3s ease, border-color 0.3s ease;
-}
-
-.avatar-wrapper img:hover {
-    transform: scale(1.05);
-    border-color: var(--xp-color) !important;
-}
-
-/* --- BARRES DE PROGRESSION (XP & PITY) --- */
-.xp-bar, .pity-progress {
-    background: #111 !important;
-    overflow: hidden;
-    position: relative;
-}
-
-.fill {
-    height: 100%;
-    border-radius: 4px;
-    transition: width 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    box-shadow: 0 0 10px rgba(0, 210, 255, 0.5);
-}
-
-/* --- GRILLE D'AVATARS --- */
-.avatar-selector .mini-avatar {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    cursor: pointer;
-    object-fit: cover;
-    border: 2px solid transparent;
-    transition: all 0.2s;
-    filter: grayscale(0.5);
-}
-
-.avatar-selector .mini-avatar:hover {
-    filter: grayscale(0);
-    transform: translateY(-5px);
-    border-color: var(--accent);
-    box-shadow: 0 5px 15px rgba(241, 196, 15, 0.3);
-}
-
-/* --- PANNEAU ADMIN & BOUTONS --- */
-.admin-panel {
-    background: var(--panel);
-    padding: 25px;
-    border-radius: 15px;
-    border-left: 5px solid var(--accent);
-}
-
-.btn-gift {
-    background: var(--accent);
-    color: #000;
-    font-weight: bold;
-    padding: 12px 25px;
-    border-radius: 8px;
-    border: none;
-    cursor: pointer;
-    transition: 0.3s;
-}
-
-.btn-gift:hover {
-    background: #fff;
-    transform: scale(1.02);
-}
-
-/* --- DESIGN DES CARTES DANS LE TIRAGE --- */
-.card {
-    position: relative;
-    border-radius: 10px;
-    overflow: hidden;
-    background: #222;
-    transition: transform 0.3s;
-}
-
-.card.rarity-5 {
-    box-shadow: 0 0 20px rgba(243, 156, 18, 0.4);
-    border: 1px solid var(--rarity-5);
-}
-
-.card.rarity-4 {
-    box-shadow: 0 0 15px rgba(155, 89, 182, 0.3);
-    border: 1px solid var(--rarity-4);
-}
-
-.card img {
-    width: 100%;
-    display: block;
-}
-
-.card-info {
-    padding: 10px;
-    font-size: 0.9em;
-    text-align: center;
-    background: rgba(0,0,0,0.8);
-}
-
-/* --- ANIMATIONS --- */
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
 }
