@@ -1,3 +1,230 @@
+:root {
+    --bg: #121212; --panel: #1e1e1e; --text: #ffffff; --accent: #7d5fff; --border: #333;
+}
+
+.light-mode {
+    --bg: #f5f5f5; --panel: #ffffff; --text: #121212; --accent: #5e35b1; --border: #ddd;
+}
+
+body {
+    margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text);
+    display: flex; height: 100vh; transition: 0.3s;
+}
+
+.hidden { display: none !important; }
+
+/* Sidebar */
+.sidebar {
+    width: 250px; background: var(--panel); border-right: 1px solid var(--border);
+    padding: 20px; display: flex; flex-direction: column; gap: 10px;
+}
+
+.nav-item {
+    padding: 12px; border-radius: 10px; cursor: pointer; transition: 0.2s;
+}
+.nav-item:hover { background: var(--accent); color: white; }
+
+/* Grille de cartes */
+.card-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 20px; padding: 20px;
+}
+
+.card {
+    width: 150px; height: 218px; /* Ratio 1100x1600 */
+    background: #000; border-radius: 10px; position: relative;
+    border: 2px solid var(--border); overflow: hidden;
+}
+
+.card img { width: 100%; height: 100%; object-fit: cover; }
+.card.locked { filter: grayscale(1) brightness(0.3); }
+
+.stars { color: gold; font-size: 14px; text-align: center; }
+
+/* Popups */
+.popup {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+    display: flex; justify-content: center; align-items: center; z-index: 100;
+}
+.popup-content {
+    background: var(--panel); padding: 30px; border-radius: 20px; text-align: center;
+}
+
+
+
+
+
+.creator-container { display: flex; gap: 40px; background: var(--panel); padding: 20px; border-radius: 15px; }
+.form-group { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+.crop-zone { flex: 1; text-align: center; }
+
+#crop-canvas {
+    border: 3px solid var(--accent);
+    background: #000;
+    cursor: move;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0,0,0,0.5);
+}
+
+.btn-save {
+    margin-top: 20px;
+    background: #27ae60;
+    color: white;
+    padding: 15px;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+
+.trade-form, .trade-item {
+    background: var(--panel);
+    padding: 20px;
+    border-radius: 15px;
+    border: 1px solid var(--border);
+    margin-bottom: 20px;
+}
+
+.trade-form select, .trade-item select {
+    padding: 10px;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-right: 10px;
+}
+
+.trade-item p {
+    margin: 5px 0;
+}
+.btn-gift {
+    background: #f1c40f; /* Jaune or */
+    color: #000;
+    padding: 15px 25px;
+    border: none;
+    border-radius: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 1.1em;
+    transition: transform 0.2s;
+}
+
+.btn-gift:hover {
+    transform: scale(1.05);
+    background: #f39c12;
+}
+
+.gift-card {
+    background: var(--panel);
+    padding: 30px;
+    border-radius: 15px;
+    border: 2px dashed var(--accent);
+    text-align: center;
+}
+
+.pity-container {
+    background: rgba(0, 0, 0, 0.7);
+    padding: 15px;
+    border-radius: 10px;
+    margin: 10px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.pity-label {
+    display: block;
+    font-size: 0.85em;
+    margin-bottom: 5px;
+    color: #ccc;
+}
+
+.pity-label strong {
+    color: #fff;
+    font-size: 1.1em;
+}
+
+.pity-progress {
+    height: 6px;
+    background: #333;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.pity-bar.rarity-5 .fill { background: linear-gradient(90deg, #f1c40f, #f39c12); } /* Or */
+.pity-bar.rarity-4 .fill { background: linear-gradient(90deg, #9b59b6, #8e44ad); } /* Violet */
+
+.fill {
+    height: 100%;
+    transition: width 0.5s ease-out;
+}
+
+.profile-header {
+    display: flex;
+    align-items: center;
+    gap: 30px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 30px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+}
+
+.avatar-wrapper {
+    position: relative;
+}
+
+#current-avatar {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid var(--accent);
+    box-shadow: 0 0 20px var(--accent);
+}
+
+.level-badge {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    background: var(--accent);
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-weight: bold;
+    font-size: 0.9em;
+}
+
+.xp-container {
+    margin-top: 15px;
+    width: 300px;
+}
+
+.xp-bar {
+    height: 10px;
+    background: #222;
+    border-radius: 5px;
+    margin-top: 5px;
+}
+
+.xp-bar .fill {
+    background: #00d2ff;
+    box-shadow: 0 0 10px #00d2ff;
+}
+
+.mini-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: 0.3s;
+    object-fit: cover;
+    border: 2px solid transparent;
+}
+
+.mini-avatar:hover {
+    transform: scale(1.1);
+    border-color: var(--accent);
+}
 /* --- VARIABLES DE COULEURS ALIEN STAGE --- */
 :root {
     --bg: #0b0e14;
