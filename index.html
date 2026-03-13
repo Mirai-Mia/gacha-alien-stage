@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gacha Alien Stage</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="dark-mode"> <div id="auth-screen" class="full-screen">
+        <div class="auth-box">
+            <h1>Gacha Alien Stage</h1>
+            <input type="text" id="login-id" placeholder="Identifiant">
+            <input type="password" id="login-pass" placeholder="Mot de passe">
+            <div class="auth-buttons">
+                <button onclick="auth.login()">Connexion</button>
+                <button onclick="auth.register()">Créer un compte</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="main-app" class="hidden">
+        <nav class="sidebar">
+            <h2 id="user-display">Pseudo</h2>
+            <div id="nav-links"></div>
+            <button onclick="ui.toggleTheme()" class="theme-toggle">Mode Clair/Sombre</button>
+            <button onclick="auth.logout()">Déconnexion</button>
+        </nav>
+
+        <main id="content-area">
+            <div id="card-creator">
+    <h2>Créer une nouvelle carte</h2>
+    <div class="creator-container">
+        <div class="form-group">
+            <label>Nom de la carte :</label>
+            <input type="text" id="new-card-name" placeholder="Ex: Alien Alpha">
+            
+            <label>Rareté :</label>
+            <select id="new-card-rarity">
+                <option value="1">Étoile montante (1★)</option>
+                <option value="2">Célébrité (2★)</option>
+                <option value="3">Star (3★)</option>
+                <option value="4">Idole (4★)</option>
+                <option value="5">Légende (5★)</option>
+            </select>
+
+            <label>Image (Upload) :</label>
+            <input type="file" id="image-upload" accept="image/*">
+            
+            <label>Crédits (Optionnel) :</label>
+            <input type="text" id="new-card-credits" placeholder="Nom de l'artiste">
+            
+            <p>Numéro de carte : <strong id="next-card-number">...</strong></p>
+            
+            <button onclick="admin.saveCard()" class="btn-save">Ajouter à la base de données</button>
+        </div>
+
+        <div class="crop-zone">
+            <p>Ajustez l'image (Glissez pour déplacer)</p>
+            <canvas id="crop-canvas" width="330" height="480"></canvas>
+            <input type="range" id="zoom-slider" min="10" max="200" value="100">
+            <span>Zoom</span>
+        </div>
+    </div>
+</div>
+        </main>
+    </div>
+
+    <div id="success-popup" class="popup hidden">
+        <div class="popup-content">
+            <h2>Bravo ! Vous avez obtenu le succès :</h2>
+            <h3 id="ach-name">Nom du succès</h3>
+            <p><span id="ach-reward">0</span> vœux gagnés</p>
+            <button onclick="ui.closePopup()">Récupérer</button>
+        </div>
+    </div>
+
+    <script src="database.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
