@@ -134,7 +134,58 @@ const adminLogic = {
         const res = await response.json();
         if (res.success) alert("Bannière mise à jour !");
         else alert("Erreur : " + res.error);
-    }
+    },
+    // À ajouter dans l'objet adminLogic existant
+    async createUser() {
+        const id = document.getElementById('admin-new-id').value;
+        const pass = document.getElementById('admin-new-pass').value;
+        const vows = document.getElementById('admin-new-vows').value;
+        const role = document.getElementById('admin-new-role').value;
+
+        if(!id || !pass) return alert("Identifiant et mot de passe requis");
+
+        const response = await fetch('/api/admin/create-user', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                adminId: currentUser.id,
+                newUser: { id, pass, vows, role }
+            })
+        });
+
+        const res = await response.json();
+        if (res.success) {
+            alert("Compte créé avec succès !");
+            ui.loadTab('Gestion des comptes');
+        } else {
+            alert(res.error);
+        }
+    },
+    async createUser() {
+        const id = document.getElementById('adm-id').value;
+        const pass = document.getElementById('adm-pass').value;
+        const vows = document.getElementById('adm-vows').value;
+        const role = document.getElementById('adm-role').value;
+
+        if(!id || !pass) return alert("Identifiant et mot de passe requis !");
+
+        const response = await fetch('/api/admin/create-user', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                adminId: currentUser.id,
+                newUser: { id, pass, vows, role }
+            })
+        });
+
+        const res = await response.json();
+        if (res.success) {
+            alert("Compte " + id + " créé !");
+            ui.loadTab('Gestion des comptes'); // Rafraîchit l'affichage
+        } else {
+            alert(res.error);
+        }
+    },
 };
 
 const ui = {
@@ -160,6 +211,55 @@ const ui = {
                     return `<img src="${c.img}" class="mini-avatar" onclick="ui.setAvatar(${c.id})">`;
                 }).join('')}</div>`;
         } 
+
+        else if (tabName === 'Gestion des comptes') {
+            main.innerHTML = `
+                <h2>Gestion des Utilisateurs</h2>
+                
+                <div class="admin-panel" style="margin-bottom: 20px;">
+                    <h3>➕ Créer un nouveau compte</h3>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <input type="text" id="adm-id" placeholder="Identifiant">
+                        <input type="text" id="adm-pass" placeholder="Mot de passe">
+                        <input type="number" id="adm-vows" placeholder="Vœux" value="10" style="width: 80px;">
+                        <select id="adm-role">
+                            <option value="user">Joueur</option>
+                            <option value="admin">Administrateur</option>
+                        </select>
+                        <button class="btn-save" onclick="adminLogic.createUser()">Créer</button>
+                    </div>
+                </div>
+
+                <h3>👥 Comptes existants</h3>
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; background: var(--panel); border-radius: 10px;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid var(--border); text-align: left;">
+                                <th style="padding: 12px;">Joueur</th>
+                                <th style="padding: 12px;">Mot de passe</th>
+                                <th style="padding: 12px;">Rôle</th>
+                                <th style="padding: 12px;">Vœux</th>
+                                <th style="padding: 12px;">Inventaire (IDs)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${globalData.users.map(u => `
+                                <tr style="border-bottom: 1px solid var(--border);">
+                                    <td style="padding: 12px;"><b>${u.id}</b></td>
+                                    <td style="padding: 12px;"><code>${u.pass}</code></td>
+                                    <td style="padding: 12px;">${u.role === 'admin' ? '🛡️ Admin' : '👤 Joueur'}</td>
+                                    <td style="padding: 12px;">${u.vows} ⭐</td>
+                                    <td style="padding: 12px; font-size: 0.85em;">
+                                        ${Object.entries(u.inventory).map(([id, qty]) => `ID:${id}(x${qty})`).join(', ') || 'Vide'}
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
         else if (tabName === 'Bannières') {
             main.innerHTML = `
                 <div class="banner-view">
@@ -219,6 +319,7 @@ const ui = {
                 </div>
                 <button class="btn-save" onclick="adminLogic.updateBanner()">Sauvegarder la bannière</button>`;
         }
+        
     },
 
     async doRoll(n) {
@@ -239,10 +340,12 @@ const ui = {
         document.body.classList.toggle('light-mode');
     },
 
+
+    // Menu des utilisateurs
     renderSidebar(role) {
         const nav = document.getElementById('nav-links');
         const tabs = role === 'admin' 
-            ? ['Mon compte', 'Bannières', 'Collection', 'Création de carte', 'Configuration Bannières'] 
+            ? ['Mon compte', 'Bannières', 'Collection', 'Création de carte', 'Configuration Bannières', 'Gestion des comptes'] 
             : ['Mon compte', 'Bannières', 'Ma collection'];
         nav.innerHTML = tabs.map(t => `<div class="nav-item" onclick="ui.loadTab('${t}')">${t}</div>`).join('');
     }
