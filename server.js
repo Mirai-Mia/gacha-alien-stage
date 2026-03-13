@@ -53,13 +53,21 @@ app.post('/api/gacha/roll', (req, res) => {
     const { userId, count } = req.body;
     const data = readDB();
     const user = data.users.find(u => u.id === userId);
+
     if (!user || user.vows < count) return res.status(400).json({ error: "Vœux insuffisants" });
 
-    const banner = data.banners.find(b => b.id === 'standard') || { cards: [] };
+    const banner = data.banners.find(b => b.id === 'standard');
+    // Vérification : Si la bannière n'existe pas ou est vide, on ne peut pas tirer
+    if (!banner || !banner.cards || banner.cards.length === 0) {
+        return res.status(400).json({ error: "La bannière est vide. L'admin doit configurer les cartes." });
+    }
+
     let obtainedCards = [];
 
     for (let i = 0; i < count; i++) {
         user.vows--;
+        
+        // Gestion de l'XP et du niveau
         user.xp = (user.xp || 0) + 10;
         let nextLevelXP = (user.level || 1) * 100;
         if (user.xp >= nextLevelXP) {
@@ -68,29 +76,38 @@ app.post('/api/gacha/roll', (req, res) => {
             user.vows += 5;
         }
 
-        Object.keys(user.pity).forEach(r => user.pity[r]++);
-        let resultRarity = 1;
-        if (user.pity[5] >= raritiesConfig[5].pity) resultRarity = 5;
-        else if (user.pity[4] >= raritiesConfig[4].pity) resultRarity = 4;
-        else if (user.pity[3] >= raritiesConfig[3].pity) resultRarity = 3;
-        else if (user.pity[2] >= raritiesConfig[2].pity) resultRarity = 2;
-        else {
-            const roll = Math.random();
-            if (roll <= 0.005) resultRarity = 5;
-            else if (roll <= 0.035) resultRarity = 4;
-            else if (roll <= 0.135) resultRarity = 3;
-            else if (roll <= 0.535) resultRarity = 2;
-        }
-        if (resultRarity > 1) user.pity[resultRarity] = 0;
+        // 1. Déterminer la rareté cible via la Pity ou la chance
+        let resultRarity = 2; 
+        const roll = Math.random();
+        if (user.pity[5] >= raritiesConfig[5].pity || roll <= 0.01) resultRarity = 5;
+        else if (user.pity[4] >= raritiesConfig[4].pity || roll <= 0.05) resultRarity = 4;
+        else if (user.pity[3] >= raritiesConfig[3].pity || roll <= 0.15) resultRarity = 3;
 
-        const possibleCards = data.cards.filter(c => c.rarity === resultRarity && banner.cards.includes(c.id));
-        if (possibleCards.length > 0) {
-            const wonCard = possibleCards[Math.floor(Math.random() * possibleCards.length)];
-            user.inventory[wonCard.id] = (user.inventory[wonCard.id] || 0) + 1;
-            obtainedCards.push(wonCard);
+        // 2. Filtrer les cartes de la bannière qui correspondent à cette rareté
+        let possibleCards = data.cards.filter(c => c.rarity === resultRarity && banner.cards.includes(c.id));
+
+        // 3. SECURITÉ : Si aucune carte de cette rareté n'est dans la bannière, 
+        // on pioche n'importe quelle carte présente dans la bannière pour garantir un résultat
+        if (possibleCards.length === 0) {
+            possibleCards = data.cards.filter(c => banner.cards.includes(c.id));
         }
+
+        const wonCard = possibleCards[Math.floor(Math.random() * possibleCards.length)];
+        
+        // 4. SAUVEGARDE PERMANENTE : Mise à jour de l'inventaire de l'utilisateur
+        user.inventory[wonCard.id] = (user.inventory[wonCard.id] || 0) + 1;
+        
+        // Reset de la pity si nécessaire
+        if (wonCard.rarity >= 2) {
+            Object.keys(user.pity).forEach(r => {
+                if (parseInt(r) <= wonCard.rarity) user.pity[r] = 0;
+            });
+        }
+        
+        obtainedCards.push(wonCard);
     }
-    saveDB(data);
+
+    saveDB(data); // Sauvegarde immédiate dans database.json
     res.json({ success: true, obtainedCards });
 });
 
