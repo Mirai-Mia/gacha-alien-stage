@@ -43,6 +43,33 @@ app.post('/api/auth/register', (req, res) => {
     res.json({ success: true });
 });
 
+// Créer un compte manuellement (Admin)
+app.post('/api/admin/create-user', (req, res) => {
+    const { adminId, newUser } = req.body;
+    const data = readDB();
+    const admin = data.users.find(u => u.id === adminId);
+
+    if (!admin || admin.role !== 'admin') return res.status(403).json({ error: "Refusé" });
+    if (data.users.find(u => u.id === newUser.id)) return res.status(400).json({ error: "L'utilisateur existe déjà" });
+
+    const userToAdd = {
+        id: newUser.id,
+        pass: newUser.pass,
+        role: newUser.role || "user",
+        vows: parseInt(newUser.vows) || 0,
+        xp: 0,
+        level: 1,
+        inventory: {},
+        pity: { "2": 0, "3": 0, "4": 0, "5": 0 },
+        avatarCardId: null,
+        achievements: []
+    };
+
+    data.users.push(userToAdd);
+    saveDB(data);
+    res.json({ success: true });
+});
+
 // Récupérer les données
 app.get('/api/data', (req, res) => {
     res.json(readDB());
@@ -162,4 +189,32 @@ app.get('/', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
+
+// Création de compte par l'administrateur
+app.post('/api/admin/create-user', (req, res) => {
+    const { adminId, newUser } = req.body;
+    const data = readDB();
+    const admin = data.users.find(u => u.id === adminId);
+
+    if (!admin || admin.role !== 'admin') return res.status(403).json({ error: "Accès refusé" });
+    if (data.users.find(u => u.id === newUser.id)) return res.status(400).json({ error: "L'identifiant existe déjà" });
+
+    const userToAdd = {
+        id: newUser.id,
+        pass: newUser.pass,
+        role: newUser.role || "user",
+        vows: parseInt(newUser.vows) || 10,
+        xp: 0,
+        level: 1,
+        inventory: {},
+        pity: { "2": 0, "3": 0, "4": 0, "5": 0 },
+        avatarCardId: null,
+        achievements: []
+    };
+
+    data.users.push(userToAdd);
+    saveDB(data);
+    res.json({ success: true });
+});
+
 app.listen(PORT, () => console.log(`Serveur actif sur port ${PORT}`));
