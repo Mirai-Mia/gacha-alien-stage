@@ -96,6 +96,10 @@ body {
     text-align: center;
 }
 
+#crop-canvas{
+    background-color: #000;
+}
+
 #nav-links {
     flex-grow: 1; /* Pousse les boutons du bas vers le bas */
 }
@@ -188,3 +192,5 @@ body {
     margin-top: 8px;
     overflow: hidden;
 }
+
+
