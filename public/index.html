@@ -27,42 +27,7 @@
         </nav>
 
         <main id="content-area">
-            <div id="card-creator">
-    <h2>Créer une nouvelle carte</h2>
-    <div class="creator-container">
-        <div class="form-group">
-            <label>Nom de la carte :</label>
-            <input type="text" id="new-card-name" placeholder="Ex: Alien Alpha">
-            
-            <label>Rareté :</label>
-            <select id="new-card-rarity">
-                <option value="1">Étoile montante (1★)</option>
-                <option value="2">Célébrité (2★)</option>
-                <option value="3">Star (3★)</option>
-                <option value="4">Idole (4★)</option>
-                <option value="5">Légende (5★)</option>
-            </select>
-
-            <label>Image (Upload) :</label>
-            <input type="file" id="image-upload" accept="image/*">
-            
-            <label>Crédits (Optionnel) :</label>
-            <input type="text" id="new-card-credits" placeholder="Nom de l'artiste">
-            
-            <p>Numéro de carte : <strong id="next-card-number">...</strong></p>
-            
-            <button onclick="admin.saveCard()" class="btn-save">Ajouter à la base de données</button>
-        </div>
-
-        <div class="crop-zone">
-            <p>Ajustez l'image (Glissez pour déplacer)</p>
-            <canvas id="crop-canvas" width="330" height="480"></canvas>
-            <input type="range" id="zoom-slider" min="10" max="200" value="100">
-            <span>Zoom</span>
-        </div>
-    </div>
-</div>
-        </main>
+    </main>
     </div>
 
     <div id="success-popup" class="popup hidden">
