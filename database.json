@@ -1,0 +1,20 @@
+{
+  "users": [
+    {
+      "id": "Mirai03",
+      "pass": "ton_mot_de_pass",
+      "role": "admin",
+      "vows": 100,
+      "xp": 0,
+      "level": 1,
+      "inventory": {},
+      "pity": { "2": 0, "3": 0, "4": 0, "5": 0 },
+      "avatarCardId": null,
+      "achievements": []
+    }
+  ],
+  "cards": [],
+  "trades": [],
+  "banners": [],
+  "achievements": []
+}

@@ -1,73 +1,47 @@
 /**
- * GACHA ALIEN STAGE - LOGIQUE PRINCIPALE
- * Version: 1.0 (2026)
+ * GACHA ALIEN STAGE - CLIENT SIDE (Version Finale)
  */
 
 let currentUser = null;
+let globalData = null;
 
-// Configuration des raretés et probabilités
 const rarities = {
-    1: { name: "Étoile montante", stars: "★", chance: 0.465 },
-    2: { name: "Célébrité", stars: "★★", chance: 0.40, pity: 5, tradeCost: 5 },
-    3: { name: "Star", stars: "★★★", chance: 0.10, pity: 20, tradeCost: 15 },
-    4: { name: "Idole", stars: "★★★★", chance: 0.03, pity: 30, tradeCost: 30 },
-    5: { name: "Légende", stars: "★★★★★", chance: 0.005, pity: 50, tradeCost: 50 }
+    1: { name: "Étoile montante", stars: "★", tradeCost: 2 },
+    2: { name: "Célébrité", stars: "★★", tradeCost: 5 },
+    3: { name: "Star", stars: "★★★", tradeCost: 15 },
+    4: { name: "Idole", stars: "★★★★", tradeCost: 30 },
+    5: { name: "Légende", stars: "★★★★★", tradeCost: 50 }
 };
+
+// Configuration de la Pity pour l'affichage visuel
+const raritiesConfig = { 2: { pity: 5 }, 3: { pity: 20 }, 4: { pity: 30 }, 5: { pity: 50 } };
+
+// --- SYNCHRONISATION SERVEUR ---
+async function refreshData() {
+    const response = await fetch('/api/data');
+    globalData = await response.json();
+    if (currentUser) {
+        currentUser = globalData.users.find(u => u.id === currentUser.id);
+    }
+}
 
 // --- LOGIQUE GACHA ---
 const gachaLogic = {
-    roll(userId, count = 1) {
-        let data = DB.get();
-        let user = data.users.find(u => u.id === userId);
-        let obtainedCards = [];
+    async roll(num) {
+        const response = await fetch('/api/gacha/roll', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: currentUser.id, count: num })
+        });
+        const result = await response.json();
 
-        if (user.vows < count) {
-            alert("Vœux insuffisants !");
+        if (result.error) {
+            alert(result.error);
             return null;
         }
 
-        for (let i = 0; i < count; i++) {
-            user.vows--;
-            // Incrémenter les compteurs de pity
-            Object.keys(user.pity).forEach(r => user.pity[r]++);
-
-            let resultRarity = 1;
-
-            // Priorité des garanties (de la plus rare à la moins rare)
-            // Si deux garanties tombent en même temps, la moins rare attendra le vœu suivant
-            if (user.pity[5] >= rarities[5].pity) resultRarity = 5;
-            else if (user.pity[4] >= rarities[4].pity) resultRarity = 4;
-            else if (user.pity[3] >= rarities[3].pity) resultRarity = 3;
-            else if (user.pity[2] >= rarities[2].pity) resultRarity = 2;
-            else {
-                // Tirage aléatoire standard
-                const r = Math.random();
-                if (r <= 0.005) resultRarity = 5;
-                else if (r <= 0.035) resultRarity = 4;
-                else if (r <= 0.135) resultRarity = 3;
-                else if (r <= 0.535) resultRarity = 2;
-            }
-
-            // Réinitialisation de la pity pour la rareté obtenue
-            if (resultRarity > 1) user.pity[resultRarity] = 0;
-
-            // Sélection d'une carte de la rareté
-            const possibleCards = data.cards.filter(c => c.rarity === resultRarity);
-            if (possibleCards.length > 0) {
-                const wonCard = possibleCards[Math.floor(Math.random() * possibleCards.length)];
-                user.inventory[wonCard.id] = (user.inventory[wonCard.id] || 0) + 1;
-                obtainedCards.push(wonCard);
-            }
-        }
-
-        DB.save(data);
-        this.checkAchievements(user);
-        return obtainedCards;
-    },
-
-    checkAchievements(user) {
-        // Logique simplifiée des succès (ex: nombre de cartes possédées)
-        // À étendre selon vos besoins de "Paramètres succès"
+        await refreshData();
+        return result.obtainedCards;
     }
 };
 
@@ -81,9 +55,7 @@ const admin = {
         this.canvas = document.getElementById('crop-canvas');
         if (!this.canvas) return;
         this.ctx = this.canvas.getContext('2d');
-        
-        const data = DB.get();
-        document.getElementById('next-card-number').innerText = data.cards.length + 1;
+        document.getElementById('next-card-number').innerText = globalData.cards.length + 1;
 
         document.getElementById('image-upload').onchange = (e) => {
             const reader = new FileReader();
@@ -118,7 +90,7 @@ const admin = {
         this.ctx.drawImage(this.img, this.imgPos.x, this.imgPos.y, w, h);
     },
 
-    saveCard() {
+    async saveCard() {
         const name = document.getElementById('new-card-name').value;
         const rarity = parseInt(document.getElementById('new-card-rarity').value);
         if (!name || !this.img.src) return alert("Nom et image requis");
@@ -134,181 +106,157 @@ const admin = {
             (this.img.height * this.imgPos.scale) * ratio
         );
 
-        const data = DB.get();
-        data.cards.push({
-            id: data.cards.length + 1,
+        const newCard = {
+            id: globalData.cards.length + 1,
             name: name,
             rarity: rarity,
-            img: exportCanvas.toDataURL("image/jpeg", 0.7),
+            img: exportCanvas.toDataURL("image/jpeg", 0.6),
             credits: document.getElementById('new-card-credits').value || "N/A"
+        };
+
+        const response = await fetch('/api/cards', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newCard)
         });
-        DB.save(data);
-        alert("Carte enregistrée !");
-        ui.loadTab('Collection');
+
+        if (response.ok) {
+            alert("Carte sauvegardée !");
+            await refreshData();
+            ui.loadTab('Collection');
+        }
+    },
+
+    async giftAllVows() {
+        const amount = prompt("Combien de vœux pour tout le monde ?");
+        if (!amount || isNaN(amount)) return;
+        const response = await fetch('/api/admin/gift-all', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ adminId: currentUser.id, amount: amount })
+        });
+        if (response.ok) { alert("Cadeaux envoyés !"); await refreshData(); ui.loadTab('Cadeaux'); }
+    },
+
+    async updateBannerContent() {
+        const selectedCheckboxes = document.querySelectorAll('.banner-card-selector:checked');
+        const cardIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+        const response = await fetch('/api/admin/update-banner', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ adminId: currentUser.id, cardIds: cardIds })
+        });
+        if (response.ok) { alert("Bannière mise à jour !"); await refreshData(); }
     }
 };
 
-// --- INTERFACE UTILISATEUR (UI) ---
+// --- INTERFACE UTILISATEUR ---
 const ui = {
-    loadTab(tabName) {
+    async loadTab(tabName) {
+        await refreshData();
         const main = document.getElementById('content-area');
         main.innerHTML = '';
         
-        if (tabName === 'Création de carte') {
+        if (tabName === 'Mon compte') {
+            const avatarCard = globalData.cards.find(c => c.id === currentUser.avatarCardId);
+            const avatarImg = avatarCard ? avatarCard.img : "https://via.placeholder.com/150";
+            const nextLevelXP = (currentUser.level || 1) * 100;
+
             main.innerHTML = `
-                <div id="tab-create-card">
-                    <h2>Création de Carte (N°<span id="next-card-number"></span>)</h2>
-                    <div class="creator-container">
-                        <div class="form-group">
-                            <input type="text" id="new-card-name" placeholder="Nom de l'Alien">
-                            <select id="new-card-rarity">
-                                <option value="1">1★ Étoile montante</option>
-                                <option value="2">2★ Célébrité</option>
-                                <option value="3">3★ Star</option>
-                                <option value="4">4★ Idole</option>
-                                <option value="5">5★ Légende</option>
-                            </select>
-                            <input type="file" id="image-upload" accept="image/*">
-                            <input type="text" id="new-card-credits" placeholder="Artiste / Crédits">
-                            <button onclick="admin.saveCard()" class="btn-save">Valider la Carte</button>
+                <div class="profile-container">
+                    <div class="profile-header" style="display:flex; align-items:center; gap:20px; background:rgba(255,255,255,0.05); padding:20px; border-radius:15px;">
+                        <div style="position:relative;">
+                            <img src="${avatarImg}" style="width:120px; height:120px; border-radius:50%; object-fit:cover; border:3px solid var(--accent);">
+                            <div style="position:absolute; bottom:0; right:0; background:var(--accent); color:#000; padding:2px 10px; border-radius:10px; font-weight:bold;">Nv. ${currentUser.level || 1}</div>
                         </div>
-                        <div class="crop-zone">
-                            <canvas id="crop-canvas" width="330" height="480"></canvas>
-                            <input type="range" id="zoom-slider" min="5" max="200" value="50">
+                        <div>
+                            <h2 style="margin:0;">${currentUser.id}</h2>
+                            <p style="opacity:0.7;">Statut: ${currentUser.role === 'admin' ? 'Administrateur' : 'Célébrité'}</p>
+                            <div style="width:200px; height:8px; background:#222; border-radius:4px; margin-top:10px;">
+                                <div style="width:${(currentUser.xp/nextLevelXP)*100}%; height:100%; background:#00d2ff; border-radius:4px;"></div>
+                            </div>
+                            <small>XP: ${currentUser.xp || 0} / ${nextLevelXP}</small>
                         </div>
                     </div>
+                    <h3 style="margin-top:30px;">Changer d'avatar (Vos cartes)</h3>
+                    <div class="card-grid">
+                        ${Object.keys(currentUser.inventory).map(id => {
+                            const card = globalData.cards.find(c => c.id == id);
+                            return `<img src="${card.img}" style="width:80px; height:80px; border-radius:50%; cursor:pointer; object-fit:cover;" onclick="ui.setAvatar(${card.id})">`;
+                        }).join('')}
+                    </div>
                 </div>`;
+
+        } else if (tabName === 'Création de carte') {
+            main.innerHTML = `<h2>Nouvelle Carte</h2><div id="tab-create-card"><div class="form-group"><input type="text" id="new-card-name" placeholder="Nom"><select id="new-card-rarity"><option value="1">1★</option><option value="2">2★</option><option value="3">3★</option><option value="4">4★</option><option value="5">5★</option></select><input type="file" id="image-upload"><button onclick="admin.saveCard()">Publier</button></div><canvas id="crop-canvas" width="330" height="480"></canvas><input type="range" id="zoom-slider" min="5" max="200" value="50"></div>`;
             admin.initCanvas();
         } else if (tabName === 'Bannières') {
             this.renderBanners();
         } else if (tabName === 'Collection' || tabName === 'Ma collection') {
             this.renderCollection();
+        } else if (tabName === 'Cadeaux') {
+            main.innerHTML = `<div class="admin-panel"><h2>Cadeaux</h2><button onclick="admin.giftAllVows()" class="btn-gift">🎁 Offrir des vœux à tous</button></div>`;
+        } else if (tabName === 'Configuration Bannières' && currentUser.role === 'admin') {
+            const standardBanner = globalData.banners.find(b => b.id === 'standard') || { cards: [] };
+            let html = `<h2>Rotation de la Bannière</h2><div class="banner-config-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; max-height:400px; overflow-y:auto; background:var(--panel); padding:15px;">`;
+            globalData.cards.forEach(card => {
+                const isChecked = standardBanner.cards.includes(card.id) ? 'checked' : '';
+                html += `<label><input type="checkbox" class="banner-card-selector" value="${card.id}" ${isChecked}> ${card.name}</label>`;
+            });
+            main.innerHTML = html + `</div><button onclick="admin.updateBannerContent()" class="btn-save">Enregistrer</button>`;
         }
-        // Dans ui.loadTab...
-else if (tabName === 'Échange') {
-    const data = DB.get();
-    let html = `<h2>Centre d'Échange</h2><p>Vœux actuels : ⭐ ${currentUser.vows}</p>`;
+    },
 
-    // --- SECTION 1 : PROPOSER UN ÉCHANGE ---
-    html += `<h3>Proposer un échange</h3>
-             <div class="trade-form">
-                <select id="trade-target-user">
-                    <option value="">Choisir un joueur en ligne...</option>
-                    ${data.users.filter(u => u.id !== currentUser.id).map(u => `<option value="${u.id}">${u.id}</option>`).join('')}
-                </select>
-                <select id="trade-my-card">
-                    <option value="">Choisir une de vos cartes...</option>
-                    ${Object.keys(currentUser.inventory).filter(id => currentUser.inventory[id] > 0).map(id => {
-                        const c = data.cards.find(card => card.id == id);
-                        return `<option value="${c.id}">${c.name} (${rarities[c.rarity].name} - Coût: ${rarities[c.rarity].tradeCost})</option>`;
-                    }).join('')}
-                </select>
-                <button onclick="const u=document.getElementById('trade-target-user').value; const c=parseInt(document.getElementById('trade-my-card').value); tradeLogic.sendProposal(currentUser, u, c)">Envoyer</button>
-             </div>`;
-
-    // --- SECTION 2 : ÉCHANGES EN ATTENTE (REÇUS) ---
-    const myTrades = data.trades.filter(t => t.receiverId === currentUser.id && t.status === 'pending');
-    html += `<h3>Propositions reçues</h3>`;
-    if(myTrades.length === 0) html += `<p>Aucune proposition pour le moment.</p>`;
-    
-    myTrades.forEach(t => {
-        const senderCard = data.cards.find(c => c.id === t.senderCardId);
-        html += `<div class="trade-item">
-            <p><strong>${t.senderId}</strong> vous propose <strong>${senderCard.name}</strong> (${rarities[t.rarity].name}).</p>
-            <p>Choisissez une carte ${rarities[t.rarity].name} à donner en retour (Taxe: ${rarities[t.rarity].tradeCost} vœux) :</p>
-            <select id="reply-card-${t.id}">
-                ${Object.keys(currentUser.inventory).filter(id => {
-                    const c = data.cards.find(card => card.id == id);
-                    return currentUser.inventory[id] > 0 && c.rarity === t.rarity;
-                }).map(id => `<option value="${id}">${data.cards.find(card => card.id == id).name}</option>`).join('')}
-            </select>
-            <button onclick="tradeLogic.acceptTrade(${t.id}, parseInt(document.getElementById('reply-card-${t.id}').value))">Accepter l'échange</button>
-        </div>`;
-    });
-
-    // --- SECTION 3 : HISTORIQUE (Pour l'admin et le joueur) ---
-    if (currentUser.role === 'admin') {
-        html += `<h3>Historique global des échanges (Admin)</h3>`;
-        data.trades.filter(t => t.status === 'completed').forEach(t => {
-            html += `<p>Succès : ${t.senderId} ↔ ${t.receiverId} (Rareté ${t.rarity})</p>`;
+    async setAvatar(cardId) {
+        const response = await fetch('/api/user/set-avatar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: currentUser.id, cardId: cardId })
         });
-    }
-
-    main.innerHTML = html;
-}
-        else if (tabName === 'Paramètres succès') {
-    const data = DB.get();
-    let html = `<h2>Gestion des Succès</h2>
-                <div class="admin-panel">
-                    <h3>Créer un nouveau succès</h3>
-                    <input type="text" id="ach-new-name" placeholder="Nom du succès">
-                    <input type="number" id="ach-new-reward" placeholder="Récompense (vœux)">
-                    
-                    <select id="ach-new-type" onchange="ui.toggleAchFields(this.value)">
-                        <option value="rarity_count">Nombre de cartes d'une rareté</option>
-                        <option value="collection_set">Posséder une liste de cartes</option>
-                    </select>
-
-                    <div id="ach-config-fields">
-                        </div>
-
-                    <button onclick="ui.saveAchievement()">Créer le succès</button>
-                </div>
-                <h3>Succès existants</h3>
-                <div class="ach-list">
-                    ${data.achievements.map(a => `<p>🏆 ${a.name} (${a.reward} vœux)</p>`).join('')}
-                </div>`;
-    main.innerHTML = html;
-}
+        if (response.ok) { await refreshData(); this.loadTab('Mon compte'); }
     },
 
     renderBanners() {
         const main = document.getElementById('content-area');
+        const p5 = raritiesConfig[5].pity - currentUser.pity[5];
+        const p4 = raritiesConfig[4].pity - currentUser.pity[4];
+
         main.innerHTML = `
             <div class="banner-view">
                 <div class="vow-display">⭐ ${currentUser.vows} Vœux</div>
                 <div class="banner-card">
                     <img src="https://via.placeholder.com/1600x1000" class="banner-img">
+                    <div class="pity-container">
+                        <div>5★ dans : <strong>${p5}</strong></div>
+                        <div>4★ dans : <strong>${p4}</strong></div>
+                    </div>
                     <div class="banner-btns">
-                        <button onclick="ui.doDraw(1)">Faire 1 vœu</button>
-                        <button onclick="ui.doDraw(5)">Faire 5 vœux</button>
+                        <button onclick="ui.doDraw(1)">1 Vœu</button>
+                        <button onclick="ui.doDraw(5)">5 Vœux</button>
                     </div>
                 </div>
                 <div id="draw-results" class="card-grid"></div>
             </div>`;
     },
 
-    doDraw(num) {
-        const results = gachaLogic.roll(currentUser.id, num);
+    async doDraw(num) {
+        const results = await gachaLogic.roll(num);
         if (!results) return;
         const resDiv = document.getElementById('draw-results');
         resDiv.innerHTML = '';
         results.forEach(card => {
-            resDiv.innerHTML += `
-                <div class="card rarity-${card.rarity}">
-                    <img src="${card.img}">
-                    <div class="card-info">${card.name}<br>${rarities[card.rarity].stars}</div>
-                </div>`;
+            resDiv.innerHTML += `<div class="card rarity-${card.rarity}"><img src="${card.img}"><div class="card-info">${card.name}</div></div>`;
         });
-        this.renderBanners(); // Refresh vœux
+        this.renderBanners();
     },
 
     renderCollection() {
-        const data = DB.get();
         const main = document.getElementById('content-area');
-        let html = `<h2>Ma Collection</h2><div class="card-grid">`;
-        
-        data.cards.forEach(card => {
+        let html = `<h2>Collection</h2><div class="card-grid">`;
+        globalData.cards.forEach(card => {
             const count = currentUser.inventory[card.id] || 0;
             const isLocked = count === 0;
-            html += `
-                <div class="card ${isLocked ? 'locked' : ''}">
-                    ${isLocked ? `<div class="card-num">#${card.id}</div>` : `<img src="${card.img}">`}
-                    <div class="card-info">
-                        ${card.name} ${!isLocked ? `(x${count})` : ''}<br>
-                        ${!isLocked ? rarities[card.rarity].stars : ''}
-                    </div>
-                </div>`;
+            html += `<div class="card ${isLocked ? 'locked' : ''}">${isLocked ? `<div class="card-num">#${card.id}</div>` : `<img src="${card.img}"><div class="card-info">${card.name} (x${count})</div>`}</div>`;
         });
         main.innerHTML = html + `</div>`;
     },
@@ -317,9 +265,8 @@ else if (tabName === 'Échange') {
         const links = document.getElementById('nav-links');
         links.innerHTML = '';
         const menu = role === 'admin' ? 
-            ['Mon compte', 'Compte', 'Cadeaux', 'Échange', 'Création de carte', 'Collection', 'Bannières'] :
-            ['Mon compte', 'Bannières', 'Ma collection', 'Échange'];
-            
+            ['Mon compte', 'Bannières', 'Cadeaux', 'Création de carte', 'Collection', 'Configuration Bannières'] :
+            ['Mon compte', 'Bannières', 'Ma collection'];
         menu.forEach(item => {
             let div = document.createElement('div');
             div.className = 'nav-item';
@@ -327,193 +274,24 @@ else if (tabName === 'Échange') {
             div.onclick = () => ui.loadTab(item);
             links.appendChild(div);
         });
-    },
-
-    toggleTheme() {
-        document.body.classList.toggle('light-mode');
     }
 };
 
-// --- AUTHENTIFICATION ---
 const auth = {
-    login() {
+    async login() {
         const id = document.getElementById('login-id').value;
         const pass = document.getElementById('login-pass').value;
-        const data = DB.get();
-        const user = data.users.find(u => u.id === id && u.pass === pass);
-        
+        await refreshData();
+        const user = globalData.users.find(u => u.id === id && u.pass === pass);
         if (user) {
             currentUser = user;
-            achievementLogic.checkAll(currentUser);
             document.getElementById('auth-screen').classList.add('hidden');
             document.getElementById('main-app').classList.remove('hidden');
             document.getElementById('user-display').innerText = user.id;
             ui.renderSidebar(user.role);
             ui.loadTab('Bannières');
-        } else {
-            alert("Accès refusé");
-        }
-    },
-    logout() { location.reload(); }
-};
-
-const tradeLogic = {
-    // Coûts définis dans ton énoncé
-    getTradeCost(rarity) {
-        return rarities[rarity].tradeCost;
-    },
-
-    // Simule l'envoi d'une proposition
-    sendProposal(fromUser, toUserId, cardId) {
-        let data = DB.get();
-        const card = data.cards.find(c => c.id === cardId);
-        const cost = this.getTradeCost(card.rarity);
-
-        if (fromUser.vows < cost) {
-            alert(`Vœux insuffisants ! Il vous faut ${cost} vœux pour échanger une carte ${rarities[card.rarity].name}.`);
-            return;
-        }
-
-        // Dans une version réelle, ceci enverrait une notification à toUserId
-        alert(`Proposition envoyée à ${toUserId}. En attente d'une carte de rareté ${card.rarity} (${rarities[card.rarity].name}) en retour.`);
-        
-        // On stocke temporairement l'échange en attente
-        data.trades.push({
-            id: Date.now(),
-            senderId: fromUser.id,
-            receiverId: toUserId,
-            senderCardId: cardId,
-            rarity: card.rarity,
-            status: 'pending'
-        });
-        DB.save(data);
-        ui.loadTab('Échange');
-    },
-
-    // Finaliser l'échange
-    acceptTrade(tradeId, receiverCardId) {
-        let data = DB.get();
-        const trade = data.trades.find(t => t.id === tradeId);
-        const sender = data.users.find(u => u.id === trade.senderId);
-        const receiver = data.users.find(u => u.id === trade.receiverId);
-        const cost = this.getTradeCost(trade.rarity);
-
-        if (receiver.vows < cost) return alert("Vœux insuffisants pour accepter l'échange.");
-
-        // Transfert des cartes
-        // Retrait chez l'envoyeur, ajout chez le receveur
-        sender.inventory[trade.senderCardId]--;
-        receiver.inventory[trade.senderCardId] = (receiver.inventory[trade.senderCardId] || 0) + 1;
-
-        // Retrait chez le receveur, ajout chez l'envoyeur
-        receiver.inventory[receiverCardId]--;
-        sender.inventory[receiverCardId] = (sender.inventory[receiverCardId] || 0) + 1;
-
-        // Paiement des taxes
-        sender.vows -= cost;
-        receiver.vows -= cost;
-
-        trade.status = 'completed';
-        trade.receiverCardId = receiverCardId;
-
-        DB.save(data);
-        alert("Échange réussi ! Les vœux ont été déduits.");
-        ui.loadTab('Échange');
+        } else { alert("Erreur d'identifiants"); }
     }
 };
 
-const achievementLogic = {
-    // Vérifier si le joueur remplit les conditions d'un succès
-    checkAll(user) {
-        const data = DB.get();
-        data.achievements.forEach(ach => {
-            // Si le joueur n'a pas encore ce succès
-            if (!user.achievements.includes(ach.id)) {
-                let accomplished = false;
-
-                if (ach.type === 'rarity_count') {
-                    const count = Object.keys(user.inventory).filter(cardId => {
-                        const card = data.cards.find(c => c.id == cardId);
-                        return card.rarity == ach.targetRarity && user.inventory[cardId] > 0;
-                    }).length;
-                    if (count >= ach.requiredCount) accomplished = true;
-                } 
-                
-                else if (ach.type === 'collection_set') {
-                    accomplished = ach.requiredCardIds.every(id => user.inventory[id] > 0);
-                }
-
-                if (accomplished) {
-                    this.unlock(user, ach);
-                }
-            }
-        });
-    },
-
-    unlock(user, ach) {
-        user.achievements.push(ach.id);
-        user.vows += ach.reward;
-        
-        // Affichage du Pop-up
-        const popup = document.getElementById('success-popup');
-        document.getElementById('ach-name').innerText = ach.name;
-        document.getElementById('ach-reward').innerText = ach.reward;
-        popup.classList.remove('hidden');
-        
-        // Sauvegarde immédiate
-        const data = DB.get();
-        const userIdx = data.users.findIndex(u => u.id === user.id);
-        data.users[userIdx] = user;
-        DB.save(data);
-    }
-};
-
-// Fonction pour fermer le pop-up (à ajouter dans l'objet ui)
-ui.closePopup = () => {
-    document.getElementById('success-popup').classList.add('hidden');
-};
-
-ui.toggleAchFields = (type) => {
-    const container = document.getElementById('ach-config-fields');
-    if (type === 'rarity_count') {
-        container.innerHTML = `
-            <select id="ach-rarity-target">
-                <option value="1">1★</option><option value="2">2★</option>
-                <option value="3">3★</option><option value="4">4★</option>
-                <option value="5">5★</option>
-            </select>
-            <input type="number" id="ach-rarity-qty" placeholder="Quantité requise">`;
-    } else {
-        const data = DB.get();
-        container.innerHTML = `<p>Sélectionnez les cartes requises :</p>
-            <div style="max-height:150px; overflow-y:auto;">
-                ${data.cards.map(c => `
-                    <label><input type="checkbox" class="ach-card-check" value="${c.id}"> ${c.name}</label><br>
-                `).join('')}
-            </div>`;
-    }
-};
-
-ui.saveAchievement = () => {
-    const data = DB.get();
-    const type = document.getElementById('ach-new-type').value;
-    const newAch = {
-        id: Date.now(),
-        name: document.getElementById('ach-new-name').value,
-        reward: parseInt(document.getElementById('ach-new-reward').value),
-        type: type
-    };
-
-    if (type === 'rarity_count') {
-        newAch.targetRarity = document.getElementById('ach-rarity-target').value;
-        newAch.requiredCount = document.getElementById('ach-rarity-qty').value;
-    } else {
-        newAch.requiredCardIds = Array.from(document.querySelectorAll('.ach-card-check:checked')).map(el => parseInt(el.value));
-    }
-
-    data.achievements.push(newAch);
-    DB.save(data);
-    alert("Succès créé !");
-    ui.loadTab('Paramètres succès');
-};
-
+window.onload = refreshData;
