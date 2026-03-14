@@ -51,11 +51,15 @@ const raritiesConfig = { 2: { pity: 5 }, 3: { pity: 20 }, 4: { pity: 30 }, 5: { 
 // Récupérer toutes les données pour app.js
 app.get('/api/data', async (req, res) => {
     try {
-        const users = await User.find();
-        const cards = await Card.find();
-        const banners = await Banner.find();
+        const users = await User.find() || [];
+        const cards = await Card.find() || [];
+        const banners = await Banner.find() || [];
+        // On renvoie un objet vide au lieu d'une erreur si c'est vide
         res.json({ users, cards, banners });
-    } catch (e) { res.status(500).send(e); }
+    } catch (e) { 
+        console.error("Erreur data:", e);
+        res.status(500).json({ users: [], cards: [], banners: [] }); 
+    }
 });
 
 // Inscription classique
