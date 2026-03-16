@@ -8,7 +8,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.static('public'));
 
 // --- CONNEXION MONGODB ---
-const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://SCRAM:maiaschapire_db_user@cluster0.xxxxx.mongodb.net/monJeu?retryWrites=true&w=majority";
+const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://maiaschapire_db_user:0GfNCz5M1m5XIQR6@cluster0.vh8xsee.mongodb.net/?appName=Cluster0";
 
 mongoose.connect(MONGO_URI)
     .then(() => console.log("✅ Connecté à MongoDB Atlas"))
