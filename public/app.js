@@ -186,7 +186,7 @@ const ui = {
                         `).join('')}
                     </div>
                     <div class="pity-info">Pity 5★ : ${currentUser.pity["5"] || 0} / ${raritiesConfig[5].pity}</div>
-                    ${b.image ? `<img src="${b.image}" class="banner-main-img" style="width:100%; border-radius:15px; margin-bottom:20px;">` : `<h2>Bannière : ${b.id}</h2>`}
+                    ${b.image ? `<img src="${b.image}" class="banner-main-img" style="width:90%; border-radius:15px; margin-bottom:20px;">` : `<h2>Bannière : ${b.id}</h2>`}
                     <div style="margin-top:20px;">
                         <button class="btn-roll" onclick="ui.doRoll(1, '${b.id}')">1 Vœu</button>
                         <button class="btn-roll" onclick="ui.doRoll(5, '${b.id}')">5 Vœux</button>
