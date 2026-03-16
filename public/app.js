@@ -107,21 +107,24 @@ const adminLogic = {
 
 const ui = {
     currentBannerIdx: 0,
+
+    nextBanner() {
+            const active = globalData.banners.filter(b => b.active);
+            this.currentBannerIdx = (this.currentBannerIdx + 1) % active.length;
+            this.loadTab('Bannières');
+    },
+    
+    prevBanner() {
+        const active = globalData.banners.filter(b => b.active);
+        this.currentBannerIdx = (this.currentBannerIdx - 1 + active.length) % active.length;
+        this.loadTab('Bannières');
+    },
+
+    
     async loadTab(tab) {
         await refreshData();
         const area = document.getElementById('content-area');
         area.innerHTML = "";
-        nextBanner() {
-            const active = globalData.banners.filter(b => b.active);
-            this.currentBannerIdx = (this.currentBannerIdx + 1) % active.length;
-            this.loadTab('Bannières');
-        },
-    
-        prevBanner() {
-            const active = globalData.banners.filter(b => b.active);
-            this.currentBannerIdx = (this.currentBannerIdx - 1 + active.length) % active.length;
-            this.loadTab('Bannières');
-        },
 
 
     
@@ -228,6 +231,7 @@ const ui = {
                 </div>`;
         }
     },
+
 
     async setAvatar(cardId) {
         await fetch('/api/user/set-avatar', {
