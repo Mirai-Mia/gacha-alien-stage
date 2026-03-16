@@ -146,7 +146,7 @@ const ui = {
                     </div>
                     
                     <p class="pity-info">Pity 5★ : ${currentUser.pity["5"] || 0} / 50</p>
-                    <img src="${b.image}" class="banner-main-img" style="max-width:100%; border-radius:15px; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
+                    <img src="${b.image}" class="banner-main-img" style="max-width:85%; border-radius:15px; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
                     
                     <div style="margin-top:20px;">
                         <button class="btn-roll" onclick="ui.doRoll(1, '${b.id}')">1 Vœu</button>
@@ -192,7 +192,7 @@ const ui = {
                     <details style="margin:10px 0;"><summary>Choisir les cartes</summary>
                         <div class="card-grid">${globalData.cards.map(c => `<label><input type="checkbox" class="banner-checkbox" value="${c.id}" ${b.cards.includes(c.id)?'checked':''}> ${c.name} (${c.rarity}★)</label>`).join('')}</div>
                     </details>
-                    <button class="btn-save" onclick="adminLogic.updateBanner('${b.id}')">Sauver</button>
+                    <button class="btn-save" onclick="adminLogic.updateBanner('${b.id}')">Enregistrer</button>
                 </div>`).join('');
         }
 
@@ -224,7 +224,7 @@ const ui = {
                                     <strong>${c.name}</strong><br>
                                     <span class="rarity-text">${c.rarity}★</span>
                                     ${qty > 1 ? `<div class="qty-badge" style="color:var(--accent)">x${qty}</div>` : ''}
-                                    ${!isLocked ? `<button onclick="ui.setAvatar('${c.id}')" style="margin-top:5px; font-size:0.7rem; cursor:pointer;">Mettre en avatar</button>` : ''}
+                                    ${!isLocked ? `<button onclick="ui.setAvatar('${c.id}')" style="margin-top:5px; font-size:0.7rem; cursor:pointer;">Avatar</button>` : ''}
                                 </div>
                             </div>`;
                     }).join('')}
