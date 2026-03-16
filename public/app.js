@@ -188,12 +188,6 @@ const ui = {
                 main.innerHTML = "<h2>Aucune bannière disponible.</h2>";
                 return;
             }
-            const activeBanners = globalData.banners.filter(b => b.active);
-            if (activeBanners.length === 0) {
-                main.innerHTML = "<h2 style='text-align:center; margin-top:50px;'>Aucun flux stellaire disponible actuellement.</h2>";
-                return;
-            }
-            const b = activeBanners[this.currentBannerIdx] || activeBanners[0];
             const b = banners[this.currentBannerIdx] || banners[0];
             main.innerHTML = `
                 <div class="banner-view">
