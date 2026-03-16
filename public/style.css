@@ -1,4 +1,20 @@
-/* --- VARIABLES GLOBALES --- */
+:root { --bg: #050a14; --panel: #0d1526; --accent: #00d2ff; --text: #e0f2ff; }
+body { background: var(--bg); color: var(--text); font-family: sans-serif; margin: 0; }
+#main-app { display: flex; height: 100vh; }
+.sidebar { width: 250px; background: var(--panel); padding: 20px; border-right: 1px solid var(--accent); }
+.nav-item { padding: 10px; cursor: pointer; border-radius: 5px; }
+.nav-item:hover { background: rgba(0,210,255,0.2); }
+#content-area { flex: 1; padding: 30px; overflow-y: auto; }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; }
+.card { border: 1px solid var(--accent); border-radius: 10px; overflow: hidden; background: #000; }
+.card img { width: 100%; aspect-ratio: 11/16; object-fit: cover; }
+.banner-main-img { width: 100%; max-width: 800px; border-radius: 15px; border: 2px solid var(--accent); }
+.btn-roll { background: var(--accent); color: #000; border: none; padding: 10px 20px; font-weight: bold; cursor: pointer; margin: 5px; }
+.admin-banner-card { background: var(--panel); padding: 15px; margin-bottom: 20px; border-radius: 10px; }
+input, select { background: #000; color: #fff; border: 1px solid var(--accent); padding: 5px; }
+canvas { display: block; margin: 10px 0; background: #000; }
+.rarity-5 { box-shadow: 0 0 15px #f39c12; border-color: #f39c12; }
+.hidden { display: none; }/* --- VARIABLES GLOBALES --- */
 :root {
     --bg: #0b0e14;
     --panel: #1a1f26;
