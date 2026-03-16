@@ -24,8 +24,7 @@ const UserSchema = new mongoose.Schema({
     level: { type: Number, default: 1 },
     inventory: { type: Map, of: Number, default: {} },
     pity: { type: Map, of: Number, default: { "2": 0, "3": 0, "4": 0, "5": 0 } },
-    avatarCardId: String,
-    achievements: Array
+    avatarCardId: String
 });
 
 const CardSchema = new mongoose.Schema({
@@ -35,46 +34,24 @@ const CardSchema = new mongoose.Schema({
     img: String
 });
 
-// --- MODÈLE BANNER MIS À JOUR ---
 const BannerSchema = new mongoose.Schema({
     id: { type: String, required: true, unique: true },
     cards: [Number],
     image: { type: String, default: '' },
-    active: { type: Boolean, default: true } // Nouveau champ
-});
-
-// ... après les autres routes ...
-
-// Supprimer une bannière
-app.delete('/api/admin/delete-banner/:id', async (req, res) => {
-    try {
-        await Banner.deleteOne({ id: req.params.id });
-        res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: "Erreur suppression" }); }
-});
-
-// Basculer l'état (Active/Inactive)
-app.post('/api/admin/toggle-banner', async (req, res) => {
-    try {
-        const { id, active } = req.body;
-        await Banner.findOneAndUpdate({ id }, { active });
-        res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: "Erreur statut" }); }
+    active: { type: Boolean, default: true }
 });
 
 const User = mongoose.model('User', UserSchema);
 const Card = mongoose.model('Card', CardSchema);
 const Banner = mongoose.model('Banner', BannerSchema);
 
-const raritiesConfig = { 2: { pity: 5 }, 3: { pity: 20 }, 4: { pity: 30 }, 5: { pity: 50 } };
-
 // --- ROUTES API ---
 
 app.get('/api/data', async (req, res) => {
     try {
-        const users = await User.find() || [];
-        const cards = await Card.find() || [];
-        const banners = await Banner.find() || [];
+        const users = await User.find();
+        const cards = await Card.find();
+        const banners = await Banner.find();
         res.json({ users, cards, banners });
     } catch (e) { res.status(500).json({ error: "Erreur data" }); }
 });
@@ -85,12 +62,23 @@ app.post('/api/auth/register', async (req, res) => {
         const newUser = new User({ id, pass });
         await newUser.save();
         res.json({ success: true });
-    } catch (e) { res.status(400).json({ error: "Erreur inscription" }); }
+    } catch (e) { res.status(400).json({ error: "ID déjà utilisé" }); }
 });
 
 app.post('/api/admin/update-banner', async (req, res) => {
     const { bannerId, cardIds, image } = req.body;
     await Banner.findOneAndUpdate({ id: bannerId }, { cards: cardIds, image }, { upsert: true });
+    res.json({ success: true });
+});
+
+app.post('/api/admin/toggle-banner', async (req, res) => {
+    const { id, active } = req.body;
+    await Banner.findOneAndUpdate({ id }, { active });
+    res.json({ success: true });
+});
+
+app.delete('/api/admin/delete-banner/:id', async (req, res) => {
+    await Banner.deleteOne({ id: req.params.id });
     res.json({ success: true });
 });
 
@@ -101,34 +89,37 @@ app.post('/api/gacha/roll', async (req, res) => {
         const banner = await Banner.findOne({ id: bannerId });
         const allCards = await Card.find();
 
-        if (!user || user.vows < count) return res.status(400).json({ error: "Vœux insuffisants" });
-        if (!banner) return res.status(400).json({ error: "Bannière introuvable" });
+        if (user.vows < count) return res.status(400).json({ error: "Vœux insuffisants" });
 
         let obtainedCards = [];
         for (let i = 0; i < count; i++) {
             user.vows--;
             user.xp += 10;
-            let resultRarity = 1;
+            let rarity = 1;
             const roll = Math.random();
 
-            if (user.pity.get("5") >= 50 || roll <= 0.01) resultRarity = 5;
-            else if (user.pity.get("4") >= 10 || roll <= 0.05) resultRarity = 4;
-            else if (roll <= 0.15) resultRarity = 3;
-            else if (roll <= 0.40) resultRarity = 2;
+            if (user.pity.get("5") >= 50 || roll <= 0.02) rarity = 5;
+            else if (user.pity.get("4") >= 10 || roll <= 0.10) rarity = 4;
+            else if (roll <= 0.30) rarity = 3;
+            else if (roll <= 0.60) rarity = 2;
 
-            let possible = allCards.filter(c => c.rarity === resultRarity && banner.cards.includes(c.id));
-            if (possible.length === 0) possible = allCards.filter(c => banner.cards.includes(c.id));
-            
+            let possible = allCards.filter(c => c.rarity === rarity && banner.cards.includes(c.id));
+            if (possible.length === 0) possible = allCards.filter(c => c.rarity === rarity);
+            if (possible.length === 0) possible = allCards;
+
             const won = possible[Math.floor(Math.random() * possible.length)];
-            const currentQty = user.inventory.get(won.id.toString()) || 0;
-            user.inventory.set(won.id.toString(), currentQty + 1);
+            user.inventory.set(won.id.toString(), (user.inventory.get(won.id.toString()) || 0) + 1);
 
+            // Gestion Pity
             [2,3,4,5].forEach(r => {
                 if (r === won.rarity) user.pity.set(r.toString(), 0);
                 else user.pity.set(r.toString(), (user.pity.get(r.toString()) || 0) + 1);
             });
             obtainedCards.push(won);
         }
+
+        // Level Up simple
+        if (user.xp >= user.level * 100) { user.xp = 0; user.level++; }
 
         user.markModified('inventory');
         user.markModified('pity');
@@ -148,13 +139,34 @@ app.post('/api/cards', async (req, res) => {
     res.json({ success: true });
 });
 
-app.post('/api/admin/create-user', async (req, res) => {
-    const userToAdd = new User(req.body.newUser);
-    await userToAdd.save();
-    res.json({ success: true });
-});
-
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Serveur prêt sur port ${PORT}`));
+
+// Mettre à jour un utilisateur (Admin uniquement)
+app.post('/api/admin/update-user', async (req, res) => {
+    try {
+        const { adminId, updatedUser } = req.body;
+        const admin = await User.findOne({ id: adminId });
+        if (!admin || admin.role !== 'admin') return res.status(403).json({ error: "Accès refusé" });
+
+        await User.findOneAndUpdate(
+            { id: updatedUser.id },
+            { pass: updatedUser.pass, vows: updatedUser.vows, role: updatedUser.role }
+        );
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: "Erreur serveur" }); }
+});
+
+// Supprimer un utilisateur (Admin uniquement)
+app.delete('/api/admin/delete-user/:id', async (req, res) => {
+    try {
+        const { adminId } = req.body;
+        const admin = await User.findOne({ id: adminId });
+        if (!admin || admin.role !== 'admin') return res.status(403).json({ error: "Accès refusé" });
+
+        await User.deleteOne({ id: req.params.id });
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: "Erreur serveur" }); }
+});
