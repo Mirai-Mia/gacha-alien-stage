@@ -34,6 +34,12 @@ const Banner = mongoose.model('Banner', new mongoose.Schema({
     cards: [Number], image: String, active: { type: Boolean, default: true }
 }));
 
+app.post('/api/user/set-avatar', async (req, res) => {
+    const { userId, cardId } = req.body;
+    await User.findOneAndUpdate({ id: userId }, { avatarCardId: cardId });
+    res.json({ success: true });
+});
+
 // --- ROUTES ---
 app.get('/api/data', async (req, res) => {
     const users = await User.find();
