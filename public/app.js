@@ -35,6 +35,18 @@ const auth = {
         const data = await res.json();
         if (data.success) alert("Compte créé !"); else alert(data.error);
     },
+    
+    logout() {
+        // 1. Supprimer l'ID de l'utilisateur du stockage local
+        localStorage.removeItem('gacha_userId');
+        
+        // 2. Réinitialiser la variable globale
+        currentUser = null;
+        
+        // 3. Recharger la page pour revenir à l'écran de connexion
+        // C'est la méthode la plus propre pour réinitialiser tout l'état de l'app
+        window.location.reload();
+    },
     autoLogin(u) {
         currentUser = u;
         document.getElementById('auth-screen').classList.add('hidden');
@@ -261,7 +273,17 @@ const ui = {
         const tabs = role === 'admin' 
             ? ['Mon compte', 'Bannières', 'Collection', 'Configuration Bannières', 'Création de carte', 'Gestion des comptes'] 
             : ['Mon compte', 'Bannières', 'Collection'];
-        document.getElementById('nav-links').innerHTML = tabs.map(t => `<div class="nav-item" onclick="ui.loadTab('${t}')">${t}</div>`).join('');
+        // On génère les liens des onglets
+        let html = tabs.map(t => `<div class="nav-item" onclick="ui.loadTab('${t}')">${t}</div>`).join('');
+        
+        // ON AJOUTE LE BOUTON DE DÉCONNEXION ICI
+        html += `
+            <div class="nav-item" onclick="auth.logout()" style="margin-top: auto; color: var(--danger); border-top: 1px solid var(--border);">
+                Déconnexion
+            </div>
+        `;
+        
+        document.getElementById('nav-links').innerHTML = html;
     }
 };
 
