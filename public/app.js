@@ -258,7 +258,8 @@ const ui = {
             main.innerHTML = `
                 <div class="banner-view">
                     <h2>Bannière Standard</h2>
-                    <div class="pity-info">Pity 5★ : ${currentUser.pity[5]}/${raritiesConfig[5].pity}</div>
+                    // DANS APP.JS (Tab Bannières)
+<div class="pity-info">Pity 5★ : ${currentUser.pity["5"] || currentUser.pity[5] || 0} / ${raritiesConfig[5].pity}</div>
                     <button onclick="ui.doRoll(1)">1 Vœu</button>
                     <button onclick="ui.doRoll(5)">5 Vœux</button>
                     <div id="results" class="card-grid"></div>
@@ -281,10 +282,11 @@ const ui = {
                 <div class="creator-container">
                     <input type="text" id="new-card-name" placeholder="Nom du personnage">
                     <select id="new-card-rarity">
-                        <option value="2">2★</option>
-                        <option value="3">3★</option>
-                        <option value="4">4★</option>
-                        <option value="5">5★</option>
+                        <option value="1">1★ « Étoile montante »</option>
+                        <option value="2">2★ « Célébrité »</option>
+                        <option value="3">3★ « Star »</option>
+                        <option value="4">4★ « Idole »</option>
+                        <option value="5">5★ « Légende »</option>
                     </select>
                     <input type="file" id="image-upload" accept="image/*">
                     <canvas id="crop-canvas" width="330" height="480"></canvas>
@@ -316,17 +318,65 @@ const ui = {
         
     },
 
+    // ... reste du code au dessus ...
+
     async doRoll(n) {
-        const res = await fetch('/api/gacha/roll', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({userId: currentUser.id, count: n}) });
+        const res = await fetch('/api/gacha/roll', { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({userId: currentUser.id, count: n}) 
+        });
         const data = await res.json();
         if (data.error) return alert(data.error);
+
         const results = document.getElementById('results');
-        results.innerHTML = data.obtainedCards.map(c => `<div class="card"><img src="${c.img}"><p>${c.name}</p></div>`).join('');
+        results.innerHTML = ""; // Vide le portail avant le tirage
+
+        // Animation d'apparition séquentielle
+        data.obtainedCards.forEach((c, index) => {
+            setTimeout(() => {
+                const isHighRarity = c.rarity >= 4 ? 'special-glow' : '';
+                const cardHtml = `
+                    <div class="card card-anim rarity-${c.rarity} ${isHighRarity}">
+                        <img src="${c.img}">
+                        <div class="card-info">
+                            <p><strong>${c.name}</strong></p>
+                            <span class="rarity-badge badge-${c.rarity}">${c.rarity} ★</span>
+                        </div>
+                    </div>
+                `;
+                results.insertAdjacentHTML('beforeend', cardHtml);
+                
+                if(c.rarity === 5) {
+                    this.createFlashEffect(); // Petit flash blanc sur l'écran
+                }
+            }, index * 250); // Un peu plus lent (250ms) pour plus de suspense
+        });
+
         await refreshData();
+        // Optionnel : mettre à jour l'affichage de la pity après le tirage
+        const pityDisplay = document.querySelector('.pity-info');
+        if(pityDisplay) pityDisplay.innerText = `Pity 5★ : 0 / ${raritiesConfig[5].pity}`;
+    },
+
+    // Petite fonction bonus pour le flash des 5 étoiles
+    createFlashEffect() {
+        const flash = document.createElement('div');
+        flash.style = "position:fixed;top:0;left:0;width:100%;height:100%;background:white;z-index:9999;opacity:0.8;pointer-events:none;";
+        document.body.appendChild(flash);
+        setTimeout(() => {
+            flash.style.transition = "opacity 0.5s";
+            flash.style.opacity = "0";
+            setTimeout(() => flash.remove(), 500);
+        }, 50);
     },
 
     async setAvatar(cardId) {
-        await fetch('/api/user/set-avatar', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({userId: currentUser.id, cardId}) });
+        await fetch('/api/user/set-avatar', { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({userId: currentUser.id, cardId}) 
+        });
         ui.loadTab('Mon compte');
     },
 
@@ -334,8 +384,6 @@ const ui = {
         document.body.classList.toggle('light-mode');
     },
 
-
-    // Menu des utilisateurs
     renderSidebar(role) {
         const nav = document.getElementById('nav-links');
         const tabs = role === 'admin' 
