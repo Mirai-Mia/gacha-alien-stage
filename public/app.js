@@ -1,6 +1,160 @@
 let currentUser = null;
 let globalData = null;
 
+async function refreshData() {
+    const res = await fetch('/api/data');
+    globalData = await res.json();
+    const saved = localStorage.getItem('gacha_userId');
+    if (saved && !currentUser) {
+        const u = globalData.users.find(x => x.id === saved);
+        if (u) auth.autoLogin(u);
+    } else if (currentUser) {
+        currentUser = globalData.users.find(x => x.id === currentUser.id);
+    }
+}
+
+const auth = {
+    async login() {
+        const id = document.getElementById('login-id').value;
+        const pass = document.getElementById('login-pass').value;
+        await refreshData();
+        const u = globalData.users.find(x => x.id === id && x.pass === pass);
+        if (u) { localStorage.setItem('gacha_userId', u.id); this.autoLogin(u); }
+        else alert("Erreur");
+    },
+    autoLogin(u) {
+        currentUser = u;
+        document.getElementById('auth-screen').classList.add('hidden');
+        document.getElementById('main-app').classList.remove('hidden');
+        ui.renderSidebar(u.role);
+        ui.loadTab('Bannières');
+    }
+};
+
+const adminLogic = {
+    canvas: null, ctx: null, img: new Image(), imgPos: { x: 0, y: 0, scale: 0.5 },
+    initCanvas() {
+        this.canvas = document.getElementById('crop-canvas');
+        this.ctx = this.canvas.getContext('2d');
+        document.getElementById('image-upload').onchange = (e) => {
+            const reader = new FileReader();
+            reader.onload = (ev) => { this.img.src = ev.target.result; this.img.onload = () => this.draw(); };
+            reader.readAsDataURL(e.target.files[0]);
+        };
+        document.getElementById('zoom-slider').oninput = (e) => { this.imgPos.scale = e.target.value / 100; this.draw(); };
+    },
+    draw() {
+        this.ctx.fillStyle = "#000"; this.ctx.fillRect(0, 0, 330, 480);
+        this.ctx.drawImage(this.img, this.imgPos.x, this.imgPos.y, this.img.width * this.imgPos.scale, this.img.height * this.imgPos.scale);
+    },
+    async saveCard() {
+        const name = document.getElementById('new-card-name').value;
+        const rarity = parseInt(document.getElementById('new-card-rarity').value);
+        await fetch('/api/cards', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: Date.now(), name, rarity, img: this.canvas.toDataURL("image/jpeg") })
+        });
+        alert("Carte 1-5★ créée !");
+    },
+    async updateBanner(id) {
+        const div = document.querySelector(`[data-banner-id="${id}"]`);
+        const cardIds = Array.from(div.querySelectorAll('.banner-checkbox:checked')).map(c => parseInt(c.value));
+        const image = div.querySelector('.banner-img-input').value;
+        await fetch('/api/admin/update-banner', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bannerId: id, cardIds, image })
+        });
+        alert("Bannière OK");
+    },
+    async updateUser(id) {
+        const div = document.querySelector(`[data-user-id="${id}"]`);
+        const updatedUser = {
+            id: id,
+            pass: div.querySelector('.edit-pass').value,
+            vows: parseInt(div.querySelector('.edit-vows').value),
+            role: div.querySelector('.edit-role').value
+        };
+        await fetch('/api/admin/update-user', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ updatedUser })
+        });
+        alert("Compte mis à jour");
+    }
+};
+
+const ui = {
+    currentBannerIdx: 0,
+    async loadTab(tab) {
+        await refreshData();
+        const area = document.getElementById('content-area');
+        area.innerHTML = "";
+
+        if (tab === 'Bannières') {
+            const active = globalData.banners.filter(b => b.active);
+            const b = active[this.currentBannerIdx] || active[0];
+            area.innerHTML = `
+                <div class="banner-view">
+                    <p>Pity 5★: ${currentUser.pity["5"]}/50</p>
+                    <img src="${b.image}" class="banner-main-img">
+                    <button class="btn-roll" onclick="ui.doRoll(1,'${b.id}')">1 Vœu</button>
+                    <button class="btn-roll" onclick="ui.doRoll(5,'${b.id}')">5 Vœux</button>
+                    <div id="results" class="card-grid"></div>
+                </div>`;
+        }
+        if (tab === 'Création de carte') {
+            area.innerHTML = `
+                <h2>Créer carte (1★ à 5★)</h2>
+                <input type="text" id="new-card-name" placeholder="Nom">
+                <select id="new-card-rarity">
+                    <option value="1">1★</option><option value="2">2★</option>
+                    <option value="3">3★</option><option value="4">4★</option><option value="5">5★</option>
+                </select>
+                <input type="file" id="image-upload">
+                <canvas id="crop-canvas" width="330" height="480"></canvas>
+                <input type="range" id="zoom-slider" min="10" max="200">
+                <button onclick="adminLogic.saveCard()">Sauver</button>`;
+            adminLogic.initCanvas();
+        }
+        if (tab === 'Gestion des comptes') {
+            area.innerHTML = globalData.users.map(u => `
+                <div class="admin-banner-card" data-user-id="${u.id}">
+                    ${u.id} | Pass: <input class="edit-pass" value="${u.pass}">
+                    Vœux: <input type="number" class="edit-vows" value="${u.vows}">
+                    Rôle: <select class="edit-role"><option value="user" ${u.role==='user'?'selected':''}>user</option><option value="admin" ${u.role==='admin'?'selected':''}>admin</option></select>
+                    <button onclick="adminLogic.updateUser('${u.id}')">💾</button>
+                </div>`).join('');
+        }
+        if (tab === 'Configuration Bannières') {
+            area.innerHTML = globalData.banners.map(b => `
+                <div class="admin-banner-card" data-banner-id="${b.id}">
+                    <h3>${b.id}</h3>
+                    <input class="banner-img-input" value="${b.image}">
+                    <div class="card-grid">${globalData.cards.map(c => `<label><input type="checkbox" class="banner-checkbox" value="${c.id}" ${b.cards.includes(c.id)?'checked':''}>${c.name}(${c.rarity}★)</label>`).join('')}</div>
+                    <button onclick="adminLogic.updateBanner('${b.id}')">Sauver</button>
+                </div>`).join('');
+        }
+    },
+    async doRoll(n, bid) {
+        const res = await fetch('/api/gacha/roll', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: currentUser.id, count: n, bannerId: bid })
+        });
+        const data = await res.json();
+        const resDiv = document.getElementById('results');
+        resDiv.innerHTML = data.obtainedCards.map(c => `<div class="card rarity-${c.rarity}"><img src="${c.img}"><p>${c.name}</p></div>`).join('');
+    },
+    renderSidebar(role) {
+        const tabs = role === 'admin' ? ['Mon compte', 'Bannières', 'Configuration Bannières', 'Création de carte', 'Gestion des comptes'] : ['Mon compte', 'Bannières'];
+        document.getElementById('nav-links').innerHTML = tabs.map(t => `<div class="nav-item" onclick="ui.loadTab('${t}')">${t}</div>`).join('');
+    }
+};
+window.onload = refreshData;let currentUser = null;
+let globalData = null;
+
 const raritiesConfig = { 2: { pity: 5 }, 3: { pity: 20 }, 4: { pity: 30 }, 5: { pity: 50 } };
 
 // --- SYNCHRONISATION ---
