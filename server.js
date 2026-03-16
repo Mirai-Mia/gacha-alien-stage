@@ -35,9 +35,11 @@ const CardSchema = new mongoose.Schema({
     img: String
 });
 
+// Dans vos Schémas (Modèles)
 const BannerSchema = new mongoose.Schema({
     id: { type: String, default: 'standard' },
-    cards: [Number]
+    cards: [Number],
+    image: { type: String, default: '' } // <-- Nouveau champ
 });
 
 const User = mongoose.model('User', UserSchema);
@@ -109,8 +111,13 @@ app.post('/api/cards', async (req, res) => {
 
 // Configurer la bannière (Admin)
 app.post('/api/admin/update-banner', async (req, res) => {
-    const { cardIds } = req.body;
-    await Banner.findOneAndUpdate({ id: 'standard' }, { cards: cardIds.map(Number) }, { upsert: true });
+    const { adminId, cardIds, image } = req.body;
+    // ... vérification admin ...
+    await Banner.findOneAndUpdate(
+        { id: 'standard' }, 
+        { cards: cardIds, image: image }, 
+        { upsert: true }
+    );
     res.json({ success: true });
 });
 
