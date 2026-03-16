@@ -1,340 +1,145 @@
-let currentUser = null;
-let globalData = null;
+const express = require('express');
+const mongoose = require('mongoose');
+const path = require('path');
+const app = express();
 
-const raritiesConfig = { 2: { pity: 5 }, 3: { pity: 20 }, 4: { pity: 30 }, 5: { pity: 50 } };
+// Middleware
+app.use(express.json({ limit: '50mb' }));
+app.use(express.static('public'));
 
-// --- SYNCHRONISATION ---
-async function refreshData() {
+// --- CONNEXION MONGODB ---
+const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://maiaschapire_db_user:0GfNCz5M1m5XIQR6@cluster0.vh8xsee.mongodb.net/gachaDB?retryWrites=true&w=majority&appName=Cluster0";
+
+mongoose.connect(MONGO_URI)
+    .then(() => console.log("✅ Connecté à MongoDB Atlas"))
+    .catch(err => console.error("❌ Erreur de connexion:", err));
+
+// --- MODÈLES ---
+const UserSchema = new mongoose.Schema({
+    id: { type: String, required: true, unique: true },
+    pass: String,
+    role: { type: String, default: 'user' },
+    vows: { type: Number, default: 10 },
+    xp: { type: Number, default: 0 },
+    level: { type: Number, default: 1 },
+    inventory: { type: Map, of: Number, default: {} },
+    pity: { type: Map, of: Number, default: { "2": 0, "3": 0, "4": 0, "5": 0 } },
+    avatarCardId: String
+});
+
+const CardSchema = new mongoose.Schema({
+    id: Number,
+    name: String,
+    rarity: Number,
+    img: String
+});
+
+const BannerSchema = new mongoose.Schema({
+    id: { type: String, required: true, unique: true },
+    cards: [Number],
+    image: { type: String, default: '' },
+    active: { type: Boolean, default: true }
+});
+
+const User = mongoose.model('User', UserSchema);
+const Card = mongoose.model('Card', CardSchema);
+const Banner = mongoose.model('Banner', BannerSchema);
+
+// --- ROUTES API ---
+
+app.get('/api/data', async (req, res) => {
     try {
-        const response = await fetch('/api/data');
-        globalData = await response.json();
-        
-        const savedUserId = localStorage.getItem('gacha_userId');
-        if (savedUserId && !currentUser) {
-            const user = globalData.users.find(u => u.id === savedUserId);
-            if (user) auth.autoLogin(user);
-        } else if (currentUser) {
-            currentUser = globalData.users.find(u => u.id === currentUser.id);
-        }
-    } catch (e) { console.error("Erreur synchro:", e); }
-}
+        const users = await User.find();
+        const cards = await Card.find();
+        const banners = await Banner.find();
+        res.json({ users, cards, banners });
+    } catch (e) { res.status(500).json({ error: "Erreur data" }); }
+});
 
-const auth = {
-    async login() {
-        const id = document.getElementById('login-id').value;
-        const pass = document.getElementById('login-pass').value;
-        await refreshData(); 
-        if (!globalData || !globalData.users) return alert("Erreur serveur.");
-        const user = globalData.users.find(u => u.id === id && u.pass === pass);
-        if (user) {
-            localStorage.setItem('gacha_userId', user.id);
-            this.autoLogin(user);
-        } else { alert("Identifiants incorrects"); }
-    },
+app.post('/api/auth/register', async (req, res) => {
+    try {
+        const { id, pass } = req.body;
+        const newUser = new User({ id, pass });
+        await newUser.save();
+        res.json({ success: true });
+    } catch (e) { res.status(400).json({ error: "ID déjà utilisé" }); }
+});
 
-    async register() {
-        const id = document.getElementById('login-id').value;
-        const pass = document.getElementById('login-pass').value;
-        if (!id || !pass) return alert("Remplis tous les champs");
-        const response = await fetch('/api/auth/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id, pass })
-        });
-        const res = await response.json();
-        if (res.success) alert("Compte créé ! Connecte-toi.");
-        else alert(res.error);
-    },
+app.post('/api/admin/update-banner', async (req, res) => {
+    const { bannerId, cardIds, image } = req.body;
+    await Banner.findOneAndUpdate({ id: bannerId }, { cards: cardIds, image }, { upsert: true });
+    res.json({ success: true });
+});
 
-    autoLogin(user) {
-        currentUser = user;
-        document.getElementById('auth-screen').classList.add('hidden');
-        document.getElementById('main-app').classList.remove('hidden');
-        document.getElementById('user-display').innerText = user.id;
-        ui.renderSidebar(user.role);
-        ui.loadTab('Bannières');
-    },
+app.post('/api/admin/toggle-banner', async (req, res) => {
+    const { id, active } = req.body;
+    await Banner.findOneAndUpdate({ id }, { active });
+    res.json({ success: true });
+});
 
-    logout() {
-        localStorage.removeItem('gacha_userId');
-        location.reload();
-    }
-};
+app.delete('/api/admin/delete-banner/:id', async (req, res) => {
+    await Banner.deleteOne({ id: req.params.id });
+    res.json({ success: true });
+});
 
-const adminLogic = {
-    canvas: null, ctx: null, img: new Image(), imgPos: { x: 0, y: 0, scale: 0.5 },
-    
-    initCanvas() {
-        this.canvas = document.getElementById('crop-canvas');
-        if (!this.canvas) return;
-        this.ctx = this.canvas.getContext('2d');
-        document.getElementById('image-upload').onchange = (e) => {
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                this.img.src = ev.target.result;
-                this.img.onload = () => { this.draw(); };
-            };
-            reader.readAsDataURL(e.target.files[0]);
-        };
-        document.getElementById('zoom-slider').oninput = (e) => { 
-            this.imgPos.scale = e.target.value / 100; 
-            this.draw(); 
-        };
-    },
+app.post('/api/gacha/roll', async (req, res) => {
+    try {
+        const { userId, count, bannerId } = req.body;
+        const user = await User.findOne({ id: userId });
+        const banner = await Banner.findOne({ id: bannerId });
+        const allCards = await Card.find();
 
-    draw() {
-        if(!this.ctx) return;
-        this.ctx.fillStyle = "#000";
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        this.ctx.drawImage(this.img, this.imgPos.x, this.imgPos.y, 
-            this.img.width * this.imgPos.scale, this.img.height * this.imgPos.scale);
-    },
+        if (user.vows < count) return res.status(400).json({ error: "Vœux insuffisants" });
 
-    async saveCard() {
-        const name = document.getElementById('new-card-name').value;
-        const rarity = parseInt(document.getElementById('new-card-rarity').value);
-        if(!name || !this.img.src) return alert("Nom ou image manquante");
-        const newCard = { id: Date.now(), name, rarity, img: this.canvas.toDataURL("image/jpeg", 0.7) };
-        await fetch('/api/cards', { 
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify(newCard) 
-        });
-        alert("Carte créée !"); 
-        ui.loadTab('Collection');
-    },
+        let obtainedCards = [];
+        for (let i = 0; i < count; i++) {
+            user.vows--;
+            user.xp += 10;
+            let rarity = 1;
+            const roll = Math.random();
 
-    async createUser() {
-        const id = document.getElementById('adm-id').value;
-        const pass = document.getElementById('adm-pass').value;
-        const vows = document.getElementById('adm-vows').value;
-        const role = document.getElementById('adm-role').value;
-        if(!id || !pass) return alert("Identifiant et mot de passe requis !");
-        const response = await fetch('/api/admin/create-user', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ adminId: currentUser.id, newUser: { id, pass, vows, role } })
-        });
-        const res = await response.json();
-        if (res.success) { alert("Compte créé !"); ui.loadTab('Gestion des comptes'); }
-        else { alert(res.error); }
-    },
+            if (user.pity.get("5") >= 50 || roll <= 0.02) rarity = 5;
+            else if (user.pity.get("4") >= 10 || roll <= 0.10) rarity = 4;
+            else if (roll <= 0.30) rarity = 3;
+            else if (roll <= 0.60) rarity = 2;
 
-    // --- LOGIQUE MULTI-BANNIÈRES ---
-    async createNewBanner() {
-        const name = prompt("Nom de la nouvelle bannière (ex: Hiver 2024) :");
-        if (!name) return;
-        const bannerId = name.toLowerCase().replace(/\s/g, '-');
-        
-        await fetch('/api/admin/update-banner', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                adminId: currentUser.id, 
-                bannerId: bannerId, // On envoie l'ID pour la création
-                cardIds: [],
-                image: "" 
-            })
-        });
-        ui.loadTab('Configuration Bannières');
-    },
+            let possible = allCards.filter(c => c.rarity === rarity && banner.cards.includes(c.id));
+            if (possible.length === 0) possible = allCards.filter(c => c.rarity === rarity);
+            if (possible.length === 0) possible = allCards;
 
-    async updateBanner(bannerId) {
-        const container = document.querySelector(`[data-banner-id="${bannerId}"]`);
-        const selectedIds = Array.from(container.querySelectorAll('.banner-checkbox:checked'))
-                                 .map(cb => parseInt(cb.value));
-        const imageUrl = container.querySelector('.banner-img-input').value;
-        
-        await fetch('/api/admin/update-banner', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                adminId: currentUser.id, 
-                bannerId: bannerId,
-                cardIds: selectedIds,
-                image: imageUrl 
-            })
-        });
-        alert(`Bannière "${bannerId}" mise à jour !`);
-        ui.loadTab('Bannières');
-    }
-};
+            const won = possible[Math.floor(Math.random() * possible.length)];
+            user.inventory.set(won.id.toString(), (user.inventory.get(won.id.toString()) || 0) + 1);
 
-const ui = {
-    currentBannerIdx: 0, // Pour suivre quelle bannière le joueur regarde
-
-    async loadTab(tabName) {
-        await refreshData();
-        const main = document.getElementById('content-area');
-        main.innerHTML = "";
-
-        if (tabName === 'Bannières') {
-            const banners = globalData.banners;
-            if (banners.length === 0) {
-                main.innerHTML = "<h2>Aucune bannière disponible.</h2>";
-                return;
-            }
-            const b = banners[this.currentBannerIdx] || banners[0];
-            main.innerHTML = `
-                <div class="banner-view">
-                    <div class="banner-nav" style="margin-bottom:20px; display:flex; gap:10px; justify-content:center;">
-                        ${banners.map((bn, idx) => `
-                            <button onclick="ui.currentBannerIdx=${idx}; ui.loadTab('Bannières')" 
-                                    class="btn-tab ${idx === this.currentBannerIdx ? 'active' : ''}">
-                                ${bn.id.toUpperCase()}
-                            </button>
-                        `).join('')}
-                    </div>
-                    <div class="pity-info">Pity 5★ : ${currentUser.pity["5"] || 0} / ${raritiesConfig[5].pity}</div>
-                    ${b.image ? `<img src="${b.image}" class="banner-main-img" style="width:90%; border-radius:15px; margin-bottom:20px;">` : `<h2>Bannière : ${b.id}</h2>`}
-                    <div style="margin-top:20px;">
-                        <button class="btn-roll" onclick="ui.doRoll(1, '${b.id}')">1 Vœu</button>
-                        <button class="btn-roll" onclick="ui.doRoll(5, '${b.id}')">5 Vœux</button>
-                    </div>
-                    <div id="results" class="card-grid"></div>
-                </div>`;
-        }
-
-        else if (tabName === 'Configuration Bannières') {
-            main.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                    <h2>Configuration des Bannières</h2>
-                    <button class="btn-save" onclick="adminLogic.createNewBanner()">+ Créer une nouvelle bannière</button>
-                </div>
-                ${globalData.banners.map(b => `
-                    <div class="admin-panel" data-banner-id="${b.id}" style="margin-bottom:30px; border: 1px solid var(--accent); padding: 15px;">
-                        <h3>Bannière : ${b.id}</h3>
-                        <label>URL Image :</label>
-                        <input type="text" class="banner-img-input" value="${b.image || ''}" style="width:100%; margin-bottom:15px;">
-                        <h4>Cartes dans cette bannière :</h4>
-                        <div class="card-grid" style="grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));">
-                            ${globalData.cards.map(c => `
-                                <div class="card mini">
-                                    <img src="${c.img}" style="height:100px;">
-                                    <label><input type="checkbox" class="banner-checkbox" value="${c.id}" ${b.cards.includes(c.id) ? 'checked' : ''}> Inclure</label>
-                                </div>
-                            `).join('')}
-                        </div>
-                        <button class="btn-save" onclick="adminLogic.updateBanner('${b.id}')" style="margin-top:15px;">Sauvegarder ${b.id}</button>
-                    </div>
-                `).join('')}`;
-        }
-
-        // --- Les autres onglets restent identiques à ta version ---
-        else if (tabName === 'Mon compte') {
-            const avatarCard = globalData.cards.find(c => c.id === currentUser.avatarCardId);
-            const avatarImg = avatarCard ? avatarCard.img : "https://via.placeholder.com/150";
-            const nextLevelXP = currentUser.level * 100;
-            main.innerHTML = `
-                <div class="profile-header">
-                    <img src="${avatarImg}" id="current-avatar">
-                    <h2>${currentUser.id} (Nv. ${currentUser.level})</h2>
-                    <div class="xp-bar"><div class="fill" style="width:${(currentUser.xp/nextLevelXP)*100}%"></div></div>
-                    <p>Vœux : ${currentUser.vows} ⭐</p>
-                </div>
-                <h3>Changer d'avatar :</h3>
-                <div class="card-grid">${Object.keys(currentUser.inventory).map(id => {
-                    const c = globalData.cards.find(card => card.id == id);
-                    return c ? `<img src="${c.img}" class="mini-avatar" onclick="ui.setAvatar(${c.id})">` : '';
-                }).join('')}</div>`;
-        } 
-
-        else if (tabName === 'Collection' || tabName === 'Ma collection') {
-            let html = `<div class="card-grid">`;
-            globalData.cards.forEach(c => {
-                const count = currentUser.inventory[c.id] || 0;
-                html += `<div class="card ${count === 0 ? 'locked' : ''}">
-                    <img src="${c.img}"><div class="card-info">${c.name} ${count > 0 ? '(x'+count+')' : ''}</div>
-                </div>`;
+            // Gestion Pity
+            [2,3,4,5].forEach(r => {
+                if (r === won.rarity) user.pity.set(r.toString(), 0);
+                else user.pity.set(r.toString(), (user.pity.get(r.toString()) || 0) + 1);
             });
-            main.innerHTML = html + `</div>`;
+            obtainedCards.push(won);
         }
 
-        else if (tabName === 'Création de carte') {
-            main.innerHTML = `
-                <h2>Créer une nouvelle carte</h2>
-                <div class="creator-container">
-                    <input type="text" id="new-card-name" placeholder="Nom du personnage">
-                    <select id="new-card-rarity">
-                        <option value="1">1★</option><option value="2">2★</option>
-                        <option value="3">3★</option><option value="4">4★</option>
-                        <option value="5">5★</option>
-                    </select>
-                    <input type="file" id="image-upload" accept="image/*">
-                    <canvas id="crop-canvas" width="330" height="480"></canvas>
-                    <input type="range" id="zoom-slider" min="10" max="200" value="50">
-                    <button class="btn-save" onclick="adminLogic.saveCard()">Enregistrer la carte</button>
-                </div>`;
-            adminLogic.initCanvas();
-        }
+        // Level Up simple
+        if (user.xp >= user.level * 100) { user.xp = 0; user.level++; }
 
-        else if (tabName === 'Gestion des comptes') {
-            main.innerHTML = `<h2>Gestion des Utilisateurs</h2>... (table des comptes ici)`;
-        }
-    },
+        user.markModified('inventory');
+        user.markModified('pity');
+        await user.save();
+        res.json({ success: true, obtainedCards });
+    } catch (e) { res.status(500).json({ error: "Erreur roll" }); }
+});
 
-    async doRoll(n, bannerId) {
-        const res = await fetch('/api/gacha/roll', { 
-            method: 'POST', 
-            headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify({userId: currentUser.id, count: n, bannerId: bannerId}) 
-        });
-        const data = await res.json();
-        if (data.error) return alert(data.error);
+app.post('/api/user/set-avatar', async (req, res) => {
+    await User.findOneAndUpdate({ id: req.body.userId }, { avatarCardId: req.body.cardId });
+    res.json({ success: true });
+});
 
-        const results = document.getElementById('results');
-        results.innerHTML = ""; 
+app.post('/api/cards', async (req, res) => {
+    const newCard = new Card(req.body);
+    await newCard.save();
+    res.json({ success: true });
+});
 
-        data.obtainedCards.forEach((c, index) => {
-            setTimeout(() => {
-                const isHighRarity = c.rarity >= 4 ? 'special-glow' : '';
-                const cardHtml = `
-                    <div class="card card-anim rarity-${c.rarity} ${isHighRarity}">
-                        <img src="${c.img}">
-                        <div class="card-info">
-                            <p><strong>${c.name}</strong></p>
-                            <span class="rarity-badge">${c.rarity} ★</span>
-                        </div>
-                    </div>`;
-                results.insertAdjacentHTML('beforeend', cardHtml);
-                if(c.rarity === 5) ui.createFlashEffect();
-            }, index * 250);
-        });
+app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
-        await refreshData();
-        const pityDisplay = document.querySelector('.pity-info');
-        if(pityDisplay) pityDisplay.innerText = `Pity 5★ : ${currentUser.pity["5"] || 0} / ${raritiesConfig[5].pity}`;
-    },
-
-    createFlashEffect() {
-        const flash = document.createElement('div');
-        flash.style = "position:fixed;top:0;left:0;width:100%;height:100%;background:white;z-index:9999;opacity:0.8;pointer-events:none;";
-        document.body.appendChild(flash);
-        setTimeout(() => {
-            flash.style.transition = "opacity 0.5s";
-            flash.style.opacity = "0";
-            setTimeout(() => flash.remove(), 500);
-        }, 50);
-    },
-
-    async setAvatar(cardId) {
-        await fetch('/api/user/set-avatar', { 
-            method: 'POST', 
-            headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify({userId: currentUser.id, cardId}) 
-        });
-        ui.loadTab('Mon compte');
-    },
-
-    toggleTheme() { document.body.classList.toggle('light-mode'); },
-
-    renderSidebar(role) {
-        const nav = document.getElementById('nav-links');
-        const tabs = role === 'admin' 
-            ? ['Mon compte', 'Bannières', 'Collection', 'Création de carte', 'Configuration Bannières', 'Gestion des comptes'] 
-            : ['Mon compte', 'Bannières', 'Ma collection'];
-        nav.innerHTML = tabs.map(t => `<div class="nav-item" onclick="ui.loadTab('${t}')">${t}</div>`).join('');
-    }
-};
-
-window.onload = refreshData;
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Serveur prêt sur port ${PORT}`));
