@@ -197,7 +197,7 @@ const ui = {
                             </div>`;
                     }).join('')}
                 </div>`;
-        }
+        },
         // ... ajoutez également cette fonction dans l'objet ui pour changer l'avatar ...
         async setAvatar(cardId) {
             await fetch('/api/user/set-avatar', {
