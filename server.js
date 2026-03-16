@@ -35,10 +35,31 @@ const CardSchema = new mongoose.Schema({
     img: String
 });
 
+// --- MODÈLE BANNER MIS À JOUR ---
 const BannerSchema = new mongoose.Schema({
     id: { type: String, required: true, unique: true },
     cards: [Number],
-    image: { type: String, default: '' } 
+    image: { type: String, default: '' },
+    active: { type: Boolean, default: true } // Nouveau champ
+});
+
+// ... après les autres routes ...
+
+// Supprimer une bannière
+app.delete('/api/admin/delete-banner/:id', async (req, res) => {
+    try {
+        await Banner.deleteOne({ id: req.params.id });
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: "Erreur suppression" }); }
+});
+
+// Basculer l'état (Active/Inactive)
+app.post('/api/admin/toggle-banner', async (req, res) => {
+    try {
+        const { id, active } = req.body;
+        await Banner.findOneAndUpdate({ id }, { active });
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: "Erreur statut" }); }
 });
 
 const User = mongoose.model('User', UserSchema);
