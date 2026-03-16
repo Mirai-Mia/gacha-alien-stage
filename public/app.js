@@ -102,21 +102,49 @@ const adminLogic = {
     }
 };
 
+
+
+
 const ui = {
     currentBannerIdx: 0,
     async loadTab(tab) {
         await refreshData();
         const area = document.getElementById('content-area');
         area.innerHTML = "";
+        nextBanner() {
+            const active = globalData.banners.filter(b => b.active);
+            this.currentBannerIdx = (this.currentBannerIdx + 1) % active.length;
+            this.loadTab('Bannières');
+        },
+    
+        prevBanner() {
+            const active = globalData.banners.filter(b => b.active);
+            this.currentBannerIdx = (this.currentBannerIdx - 1 + active.length) % active.length;
+            this.loadTab('Bannières');
+        },
 
+
+    
         if (tab === 'Bannières') {
             const active = globalData.banners.filter(b => b.active);
             if (active.length === 0) { area.innerHTML = "<h2>Aucun flux disponible</h2>"; return; }
-            const b = active[this.currentBannerIdx] || active[0];
+            
+            // On s'assure que l'index ne dépasse pas le nombre de bannières
+            if (this.currentBannerIdx >= active.length) this.currentBannerIdx = 0;
+            
+            const b = active[this.currentBannerIdx];
+            
             area.innerHTML = `
                 <div class="banner-view" style="text-align:center;">
+                    <div class="banner-navigation" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                        <button class="btn-save" onclick="ui.prevBanner()">◀ Précédente</button>
+                        <h3 style="margin:0; color:var(--accent)">Flux ${this.currentBannerIdx + 1} / ${active.length}</h3>
+                        <button class="btn-save" onclick="ui.nextBanner()">Suivante ▶</button>
+                    </div>
+                    
                     <p class="pity-info">Pity 5★ : ${currentUser.pity["5"] || 0} / 50</p>
-                    <img src="${b.image}" class="banner-main-img">
+                    <img src="${b.image}" class="banner-main-img" style="max-width:100%; border-radius:15px; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
+                    
                     <div style="margin-top:20px;">
                         <button class="btn-roll" onclick="ui.doRoll(1, '${b.id}')">1 Vœu</button>
                         <button class="btn-roll" onclick="ui.doRoll(5, '${b.id}')">5 Vœux</button>
