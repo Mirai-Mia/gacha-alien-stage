@@ -229,3 +229,30 @@ body {
     50% { transform: scale(1.05); }
     100% { transform: scale(1); }
 }
+
+
+/* IMAGE BANNIERE */
+
+.banner-main-img {
+    width: 100%;
+    max-height: 350px;
+    object-fit: cover;
+    border-radius: 15px;
+    margin-bottom: 25px;
+    border: 2px solid var(--accent);
+    box-shadow: 0 0 25px rgba(241, 196, 15, 0.2);
+}
+
+.roll-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-bottom: 30px;
+}
+
+.btn-roll {
+    padding: 12px 30px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
