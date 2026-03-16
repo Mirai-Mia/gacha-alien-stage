@@ -174,6 +174,12 @@ const ui = {
                 <p>Vœux disponibles : ${currentUser.vows} ⭐</p>
             </div>`;
         }
+        if (tabName === 'Collection' || tabName === 'Ma collection') {
+            main.innerHTML = `<h2>Collection</h2><div class="card-grid">${globalData.cards.map(c => {
+                const qty = currentUser.inventory[c.id] || 0;
+                return `<div class="card ${qty===0?'locked':''} rarity-${c.rarity}"><img src="${c.img}"><div class="card-info">${c.name} ${qty>0?`(x${qty})`:''}</div></div>`;
+            }).join('')}</div>`;
+        }
     },
     async doRoll(n, bid) {
         const res = await fetch('/api/gacha/roll', {
