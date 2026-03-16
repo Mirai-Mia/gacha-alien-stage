@@ -24,7 +24,6 @@ const auth = {
         const id = document.getElementById('login-id').value;
         const pass = document.getElementById('login-pass').value;
         
-        // On s'assure d'avoir les données avant de chercher l'utilisateur
         await refreshData(); 
         
         if (!globalData || !globalData.users) {
@@ -121,7 +120,6 @@ const adminLogic = {
         ui.loadTab('Collection');
     },
 
-    // --- NOUVELLE LOGIQUE DE GESTION DES COMPTES (MONGO) ---
     async createUser() {
         const id = document.getElementById('adm-id').value;
         const pass = document.getElementById('adm-pass').value;
@@ -148,37 +146,22 @@ const adminLogic = {
         }
     },
 
-    async deleteUser(targetId) {
-        if (!confirm(`Supprimer ${targetId} ?`)) return;
-        await fetch('/api/admin/delete-user', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ adminId: currentUser.id, targetUserId: targetId })
-        });
-        ui.loadTab('Gestion des comptes');
-    },
-
-    async giftUser(targetId) {
-        const amount = prompt("Nombre de vœux à offrir :", "50");
-        if (!amount) return;
-        await fetch('/api/admin/gift-user', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ adminId: currentUser.id, targetUserId: targetId, amount: parseInt(amount) })
-        });
-        ui.loadTab('Gestion des comptes');
-    },
-
     async updateBanner() {
         const selectedIds = Array.from(document.querySelectorAll('.banner-checkbox:checked'))
                                  .map(cb => parseInt(cb.value));
+        const imageUrl = document.getElementById('banner-img-url').value;
         
         await fetch('/api/admin/update-banner', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ adminId: currentUser.id, cardIds: selectedIds })
+            body: JSON.stringify({ 
+                adminId: currentUser.id, 
+                cardIds: selectedIds,
+                image: imageUrl 
+            })
         });
         alert("Bannière mise à jour !");
+        ui.loadTab('Bannières');
     }
 };
 
@@ -209,7 +192,6 @@ const ui = {
         else if (tabName === 'Gestion des comptes') {
             main.innerHTML = `
                 <h2>Gestion des Utilisateurs</h2>
-                
                 <div class="admin-panel" style="margin-bottom: 20px;">
                     <h3>➕ Créer un nouveau compte</h3>
                     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
@@ -223,14 +205,12 @@ const ui = {
                         <button class="btn-save" onclick="adminLogic.createUser()">Créer</button>
                     </div>
                 </div>
-
                 <h3>👥 Comptes existants</h3>
                 <div style="overflow-x: auto;">
                     <table style="width: 100%; border-collapse: collapse; background: var(--panel); border-radius: 10px;">
                         <thead>
                             <tr style="border-bottom: 2px solid var(--border); text-align: left;">
                                 <th style="padding: 12px;">Joueur</th>
-                                <th style="padding: 12px;">Mot de passe</th>
                                 <th style="padding: 12px;">Rôle</th>
                                 <th style="padding: 12px;">Vœux</th>
                                 <th style="padding: 12px;">Inventaire (IDs)</th>
@@ -240,7 +220,6 @@ const ui = {
                             ${globalData.users.map(u => `
                                 <tr style="border-bottom: 1px solid var(--border);">
                                     <td style="padding: 12px;"><b>${u.id}</b></td>
-                                    <td style="padding: 12px;"><code>${u.pass}</code></td>
                                     <td style="padding: 12px;">${u.role === 'admin' ? '🛡️ Admin' : '👤 Joueur'}</td>
                                     <td style="padding: 12px;">${u.vows} ⭐</td>
                                     <td style="padding: 12px; font-size: 0.85em;">
@@ -250,21 +229,23 @@ const ui = {
                             `).join('')}
                         </tbody>
                     </table>
-                </div>
-            `;
+                </div>`;
         }
 
         else if (tabName === 'Bannières') {
+            const banner = globalData.banners.find(b => b.id === 'standard') || { image: "" };
             main.innerHTML = `
                 <div class="banner-view">
-                    <h2>Bannière Standard</h2>
-                    // DANS APP.JS (Tab Bannières)
-<div class="pity-info">Pity 5★ : ${currentUser.pity["5"] || currentUser.pity[5] || 0} / ${raritiesConfig[5].pity}</div>
-                    <button onclick="ui.doRoll(1)">1 Vœu</button>
-                    <button onclick="ui.doRoll(5)">5 Vœux</button>
+                    ${banner.image ? `<img src="${banner.image}" class="banner-main-img" style="width:100%; border-radius:15px; margin-bottom:20px;">` : '<h2>Bannière Standard</h2>'}
+                    <div class="pity-info">Pity 5★ : ${currentUser.pity["5"] || 0} / ${raritiesConfig[5].pity}</div>
+                    <div style="margin-top:20px;">
+                        <button class="btn-roll" onclick="ui.doRoll(1)">1 Vœu</button>
+                        <button class="btn-roll" onclick="ui.doRoll(5)">5 Vœux</button>
+                    </div>
                     <div id="results" class="card-grid"></div>
                 </div>`;
         }
+
         else if (tabName === 'Collection' || tabName === 'Ma collection') {
             let html = `<div class="card-grid">`;
             globalData.cards.forEach(c => {
@@ -276,17 +257,16 @@ const ui = {
             });
             main.innerHTML = html + `</div>`;
         }
+
         else if (tabName === 'Création de carte') {
             main.innerHTML = `
                 <h2>Créer une nouvelle carte</h2>
                 <div class="creator-container">
                     <input type="text" id="new-card-name" placeholder="Nom du personnage">
                     <select id="new-card-rarity">
-                        <option value="1">1★ « Étoile montante »</option>
-                        <option value="2">2★ « Célébrité »</option>
-                        <option value="3">3★ « Star »</option>
-                        <option value="4">4★ « Idole »</option>
-                        <option value="5">5★ « Légende »</option>
+                        <option value="1">1★</option><option value="2">2★</option>
+                        <option value="3">3★</option><option value="4">4★</option>
+                        <option value="5">5★</option>
                     </select>
                     <input type="file" id="image-upload" accept="image/*">
                     <canvas id="crop-canvas" width="330" height="480"></canvas>
@@ -295,30 +275,28 @@ const ui = {
                 </div>`;
             adminLogic.initCanvas();
         }
+
         else if (tabName === 'Configuration Bannières') {
-            const banner = globalData.banners.find(b => b.id === 'standard') || { cards: [] };
+            const banner = globalData.banners.find(b => b.id === 'standard') || { cards: [], image: "" };
             main.innerHTML = `
-                <h2>Gérer la Bannière Standard</h2>
-                <p>Sélectionnez les cartes disponibles au tirage :</p>
+                <h2>Configuration de la Bannière</h2>
+                <div class="admin-panel" style="margin-bottom:20px;">
+                    <label>URL de l'image de bannière :</label>
+                    <input type="text" id="banner-img-url" value="${banner.image}" style="width:100%;" placeholder="Lien .jpg ou .png">
+                </div>
                 <div class="card-grid">
                     ${globalData.cards.map(c => `
                         <div class="card">
                             <img src="${c.img}">
                             <div class="card-info">
-                                <label>
-                                    <input type="checkbox" class="banner-checkbox" value="${c.id}" 
-                                    ${banner.cards.includes(c.id) ? 'checked' : ''}> Activer
-                                </label>
+                                <label><input type="checkbox" class="banner-checkbox" value="${c.id}" ${banner.cards.includes(c.id) ? 'checked' : ''}> Activer</label>
                             </div>
                         </div>
                     `).join('')}
                 </div>
-                <button class="btn-save" onclick="adminLogic.updateBanner()">Sauvegarder la bannière</button>`;
+                <button class="btn-save" onclick="adminLogic.updateBanner()">Sauvegarder</button>`;
         }
-        
     },
-
-    // ... reste du code au dessus ...
 
     async doRoll(n) {
         const res = await fetch('/api/gacha/roll', { 
@@ -330,9 +308,8 @@ const ui = {
         if (data.error) return alert(data.error);
 
         const results = document.getElementById('results');
-        results.innerHTML = ""; // Vide le portail avant le tirage
+        results.innerHTML = ""; 
 
-        // Animation d'apparition séquentielle
         data.obtainedCards.forEach((c, index) => {
             setTimeout(() => {
                 const isHighRarity = c.rarity >= 4 ? 'special-glow' : '';
@@ -341,25 +318,19 @@ const ui = {
                         <img src="${c.img}">
                         <div class="card-info">
                             <p><strong>${c.name}</strong></p>
-                            <span class="rarity-badge badge-${c.rarity}">${c.rarity} ★</span>
+                            <span class="rarity-badge">${c.rarity} ★</span>
                         </div>
-                    </div>
-                `;
+                    </div>`;
                 results.insertAdjacentHTML('beforeend', cardHtml);
-                
-                if(c.rarity === 5) {
-                    this.createFlashEffect(); // Petit flash blanc sur l'écran
-                }
-            }, index * 250); // Un peu plus lent (250ms) pour plus de suspense
+                if(c.rarity === 5) ui.createFlashEffect();
+            }, index * 250);
         });
 
         await refreshData();
-        // Optionnel : mettre à jour l'affichage de la pity après le tirage
         const pityDisplay = document.querySelector('.pity-info');
-        if(pityDisplay) pityDisplay.innerText = `Pity 5★ : 0 / ${raritiesConfig[5].pity}`;
+        if(pityDisplay) pityDisplay.innerText = `Pity 5★ : ${currentUser.pity["5"] || 0} / ${raritiesConfig[5].pity}`;
     },
 
-    // Petite fonction bonus pour le flash des 5 étoiles
     createFlashEffect() {
         const flash = document.createElement('div');
         flash.style = "position:fixed;top:0;left:0;width:100%;height:100%;background:white;z-index:9999;opacity:0.8;pointer-events:none;";
