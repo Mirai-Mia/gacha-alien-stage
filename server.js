@@ -130,10 +130,20 @@ app.post('/api/gacha/roll', async (req, res) => {
         user.xp += 10;
         
         // Logique de rareté
-        let resultRarity = 2;
-        const roll = Math.random();
-        if (user.pity.get("5") >= raritiesConfig[5].pity || roll <= 0.01) resultRarity = 5;
-        else if (user.pity.get("4") >= raritiesConfig[4].pity || roll <= 0.05) resultRarity = 4;
+        // --- DANS SERVER.JS (Route /api/gacha/roll) ---
+let resultRarity = 1; // Par défaut : 1 étoile
+const roll = Math.random();
+
+if (user.pity.get("5") >= raritiesConfig[5].pity || roll <= 0.01) {
+    resultRarity = 5;
+} else if (user.pity.get("4") >= raritiesConfig[4].pity || roll <= 0.05) {
+    resultRarity = 4;
+} else if (roll <= 0.15) {
+    resultRarity = 3;
+} else if (roll <= 0.40) {
+    resultRarity = 2;
+}
+// Si aucun de ces cas n'est vrai, resultRarity reste à 1.
 
         let possible = allCards.filter(c => c.rarity === resultRarity && banner.cards.includes(c.id));
         if (possible.length === 0) possible = allCards.filter(c => banner.cards.includes(c.id));
