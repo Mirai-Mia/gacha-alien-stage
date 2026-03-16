@@ -207,6 +207,191 @@ const UserSchema = new mongoose.Schema({
     vows: { type: Number, default: 10 },
     xp: { type: Number, default: 0 },
     level: { type: Number, default: 1 },
+    inventory: { type: Map, of: Number, default: {} },
+    pity: { type: Map, of: Number, default: { "2": 0, "3": 0, "4": 0, "5": 0 } },
+    avatarCardId: String,
+    achievements: Array
+});
+
+const CardSchema = new mongoose.Schema({
+    id: Number,
+    name: String,
+    rarity: Number,
+    img: String
+});
+
+const BannerSchema = new mongoose.Schema({
+    id: { type: String, required: true, unique: true }, // ID unique (ex: 'standard', 'noel-2024')
+    cards: [Number],
+    image: { type: String, default: '' } 
+});
+
+const User = mongoose.model('User', UserSchema);
+const Card = mongoose.model('Card', CardSchema);
+const Banner = mongoose.model('Banner', BannerSchema);
+
+const raritiesConfig = { 2: { pity: 5 }, 3: { pity: 20 }, 4: { pity: 30 }, 5: { pity: 50 } };
+
+// --- ROUTES ---
+
+// Récupérer toutes les données
+app.get('/api/data', async (req, res) => {
+    try {
+        const users = await User.find() || [];
+        const cards = await Card.find() || [];
+        const banners = await Banner.find() || [];
+        res.json({ users, cards, banners });
+    } catch (e) { 
+        res.status(500).json({ users: [], cards: [], banners: [] }); 
+    }
+});
+
+// Inscription
+app.post('/api/auth/register', async (req, res) => {
+    try {
+        const { id, pass } = req.body;
+        const newUser = new User({ 
+            id, pass, role: "user", vows: 10, xp: 0, level: 1, inventory: {}, 
+            pity: { "2": 0, "3": 0, "4": 0, "5": 0 }
+        });
+        await newUser.save();
+        res.json({ success: true });
+    } catch (e) { res.status(400).json({ error: "Identifiant déjà utilisé" }); }
+});
+
+// Créer une bannière ou mettre à jour (Admin)
+app.post('/api/admin/update-banner', async (req, res) => {
+    try {
+        const { bannerId, cardIds, image } = req.body;
+        // Utilise bannerId pour trouver ou créer (upsert) la bannière correspondante
+        await Banner.findOneAndUpdate(
+            { id: bannerId }, 
+            { cards: cardIds, image: image }, 
+            { upsert: true, new: true }
+        );
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: "Erreur mise à jour bannière" }); }
+});
+
+// Tirage Gacha MULTI-BANNIÈRE
+app.post('/api/gacha/roll', async (req, res) => {
+    try {
+        const { userId, count, bannerId } = req.body; // Récupère le bannerId envoyé par le client
+        const user = await User.findOne({ id: userId });
+        const banner = await Banner.findOne({ id: bannerId });
+        const allCards = await Card.find();
+
+        if (!user || user.vows < count) return res.status(400).json({ error: "Vœux insuffisants" });
+        if (!banner || banner.cards.length === 0) return res.status(400).json({ error: "Cette bannière est vide ou introuvable" });
+
+        let obtainedCards = [];
+        for (let i = 0; i < count; i++) {
+            user.vows--;
+            user.xp += 10;
+            
+            // Logique de rareté
+            let resultRarity = 1;
+            const roll = Math.random();
+
+            // Gestion des Pitys
+            if (user.pity.get("5") >= raritiesConfig[5].pity || roll <= 0.01) resultRarity = 5;
+            else if (user.pity.get("4") >= raritiesConfig[4].pity || roll <= 0.05) resultRarity = 4;
+            else if (roll <= 0.15) resultRarity = 3;
+            else if (roll <= 0.40) resultRarity = 2;
+
+            // Filtrer les cartes : SEULEMENT celles de la bannière choisie avec la rareté obtenue
+            let possible = allCards.filter(c => c.rarity === resultRarity && banner.cards.includes(c.id));
+            
+            // Sécurité : si aucune carte de cette rareté n'est dans la bannière, on prend n'importe quelle carte de la bannière
+            if (possible.length === 0) possible = allCards.filter(c => banner.cards.includes(c.id));
+
+            const won = possible[Math.floor(Math.random() * possible.length)];
+            
+            // Mise à jour Inventaire
+            const currentQty = user.inventory.get(won.id.toString()) || 0;
+            user.inventory.set(won.id.toString(), currentQty + 1);
+
+            // Incrémentation des Pitys pour les autres raretés, Reset pour la gagnée
+            [2, 3, 4, 5].forEach(r => {
+                if (r === won.rarity) user.pity.set(r.toString(), 0);
+                else {
+                    const currentPity = user.pity.get(r.toString()) || 0;
+                    user.pity.set(r.toString(), currentPity + 1);
+                }
+            });
+
+            obtainedCards.push(won);
+        }
+
+        // Gestion du niveau
+        const xpNeeded = user.level * 100;
+        if (user.xp >= xpNeeded) {
+            user.xp -= xpNeeded;
+            user.level += 1;
+        }
+
+        user.markModified('inventory');
+        user.markModified('pity');
+        await user.save();
+        res.json({ success: true, obtainedCards });
+
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: "Erreur lors du tirage" });
+    }
+});
+
+// Avatar et autres routes Admin
+app.post('/api/user/set-avatar', async (req, res) => {
+    await User.findOneAndUpdate({ id: req.body.userId }, { avatarCardId: req.body.cardId });
+    res.json({ success: true });
+});
+
+app.post('/api/cards', async (req, res) => {
+    const newCard = new Card(req.body);
+    await newCard.save();
+    res.json({ success: true });
+});
+
+app.post('/api/admin/create-user', async (req, res) => {
+    try {
+        const { newUser } = req.body;
+        const userToAdd = new User({
+            id: newUser.id, pass: newUser.pass, role: newUser.role || "user",
+            vows: parseInt(newUser.vows) || 10, pity: { "2": 0, "3": 0, "4": 0, "5": 0 }, inventory: {}
+        });
+        await userToAdd.save();
+        res.json({ success: true });
+    } catch (e) { res.status(400).json({ error: "Erreur création" }); }
+});
+
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Serveur prêt sur port ${PORT}`));const express = require('express');
+const mongoose = require('mongoose');
+const path = require('path');
+const app = express();
+
+// Middleware
+app.use(express.json({ limit: '50mb' }));
+app.use(express.static('public'));
+
+// --- CONNEXION MONGODB ---
+const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://maiaschapire_db_user:0GfNCz5M1m5XIQR6@cluster0.vh8xsee.mongodb.net/gachaDB?retryWrites=true&w=majority&appName=Cluster0";
+
+mongoose.connect(MONGO_URI)
+    .then(() => console.log("✅ Connecté à MongoDB Atlas"))
+    .catch(err => console.error("❌ Erreur de connexion:", err));
+
+// --- MODÈLES (SCHEMAS) ---
+const UserSchema = new mongoose.Schema({
+    id: { type: String, required: true, unique: true },
+    pass: String,
+    role: { type: String, default: 'user' },
+    vows: { type: Number, default: 10 },
+    xp: { type: Number, default: 0 },
+    level: { type: Number, default: 1 },
     inventory: { type: Map, of: Number, default: {} }, // Utilisation d'une Map pour l'inventaire
     pity: { type: Map, of: Number, default: { "2": 0, "3": 0, "4": 0, "5": 0 } },
     avatarCardId: String,
