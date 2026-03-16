@@ -115,7 +115,7 @@ const ui = {
             const b = active[this.currentBannerIdx] || active[0];
             area.innerHTML = `
                 <div class="banner-view" style="text-align:center;">
-                    <p class="pity-info">Pity 5★ : ${currentUser.pity["5"]} / 50</p>
+                    <p class="pity-info">Pity 5★ : ${currentUser.pity["5"] || 0} / 50</p>
                     <img src="${b.image}" class="banner-main-img">
                     <div style="margin-top:20px;">
                         <button class="btn-roll" onclick="ui.doRoll(1, '${b.id}')">1 Vœu</button>
@@ -167,8 +167,8 @@ const ui = {
 
         if (tab === 'Mon compte') {
             const avatar = globalData.cards.find(c => c.id == currentUser.avatarCardId)?.img || "";
-            area.innerHTML = `<div class="profile-header">
-                <img src="${avatar}" style="width:150px; border-radius:50%; border:2px solid var(--accent);">
+            area.innerHTML = `<div class="profile-header" style="text-align:center;">
+                <img src="${avatar}" style="width:150px; height:150px; object-fit:cover; border-radius:50%; border:2px solid var(--accent); background:#000;">
                 <h2>${currentUser.id} (Nv. ${currentUser.level})</h2>
                 <div class="xp-bar-container"><div class="xp-fill" style="width:${currentUser.xp}%"></div></div>
                 <p>Vœux disponibles : ${currentUser.vows} ⭐</p>
@@ -176,14 +176,15 @@ const ui = {
         }
 
         if (tab === 'Collection' || tab === 'Ma collection') {
+            const inv = currentUser.inventory || {};
             area.innerHTML = `
                 <div class="collection-header">
                     <h2>Ma Collection</h2>
-                    <p>Cartes débloquées : ${Object.keys(currentUser.inventory).length} / ${globalData.cards.length}</p>
+                    <p>Cartes débloquées : ${Object.keys(inv).length} / ${globalData.cards.length}</p>
                 </div>
                 <div class="card-grid">
                     ${globalData.cards.map(c => {
-                        const qty = currentUser.inventory[c.id] || 0;
+                        const qty = inv[c.id] || 0;
                         const isLocked = qty === 0;
                         return `
                             <div class="card ${isLocked ? 'locked' : ''} rarity-${c.rarity}">
@@ -197,27 +198,20 @@ const ui = {
                             </div>`;
                     }).join('')}
                 </div>`;
-        },
-        // ... ajoutez également cette fonction dans l'objet ui pour changer l'avatar ...
-        async setAvatar(cardId) {
-            await fetch('/api/user/set-avatar', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: currentUser.id, cardId })
-            });
-            alert("Avatar mis à jour !");
-            await refreshData();
-            ui.loadTab('Mon compte');
-        },
-        
-        // ... et modifiez renderSidebar pour inclure le lien ...
-        renderSidebar(role) {
-            const tabs = role === 'admin' 
-                ? ['Mon compte', 'Bannières', 'Collection', 'Configuration Bannières', 'Création de carte', 'Gestion des comptes'] 
-                : ['Mon compte', 'Bannières', 'Ma collection'];
-            document.getElementById('nav-links').innerHTML = tabs.map(t => `<div class="nav-item" onclick="ui.loadTab('${t}')">${t}</div>`).join('');
         }
     },
+
+    async setAvatar(cardId) {
+        await fetch('/api/user/set-avatar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: currentUser.id, cardId })
+        });
+        alert("Avatar mis à jour !");
+        await refreshData();
+        ui.loadTab('Mon compte');
+    },
+
     async doRoll(n, bid) {
         const res = await fetch('/api/gacha/roll', {
             method: 'POST',
@@ -230,8 +224,11 @@ const ui = {
         resDiv.innerHTML = data.obtainedCards.map(c => `<div class="card card-anim rarity-${c.rarity}"><img src="${c.img}"><p>${c.name} (${c.rarity}★)</p></div>`).join('');
         await refreshData();
     },
+
     renderSidebar(role) {
-        const tabs = role === 'admin' ? ['Mon compte', 'Bannières', 'Configuration Bannières', 'Création de carte', 'Gestion des comptes'] : ['Mon compte', 'Bannières'];
+        const tabs = role === 'admin' 
+            ? ['Mon compte', 'Bannières', 'Collection', 'Configuration Bannières', 'Création de carte', 'Gestion des comptes'] 
+            : ['Mon compte', 'Bannières', 'Collection'];
         document.getElementById('nav-links').innerHTML = tabs.map(t => `<div class="nav-item" onclick="ui.loadTab('${t}')">${t}</div>`).join('');
     }
 };
