@@ -133,6 +133,8 @@ body {
     margin-top: 20px;
 }
 
+.card.rarity-1 { border-color: #7f8c8d; } /* Un gris métallique sympa */
+
 .card {
     background: #111;
     border-radius: 12px;
@@ -194,3 +196,36 @@ body {
 }
 
 
+/* Animation tirage de carte */
+/* Animation d'apparition */
+@keyframes cardAppear {
+    0% { transform: scale(0.5) rotateY(90deg); opacity: 0; }
+    100% { transform: scale(1) rotateY(0deg); opacity: 1; }
+}
+
+.card-anim {
+    animation: cardAppear 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) backwards;
+}
+
+/* Badge de rareté */
+.rarity-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    font-weight: bold;
+    margin-top: 5px;
+    text-transform: uppercase;
+}
+
+.badge-1 { background: #7f8c8d; color: white; }
+.badge-2 { background: #2ecc71; color: white; }
+.badge-3 { background: #3498db; color: white; }
+.badge-4 { background: #9b59b6; color: white; box-shadow: 0 0 10px #9b59b6; }
+.badge-5 { background: #f1c40f; color: black; box-shadow: 0 0 15px #f1c40f; animation: pulse 1.5s infinite; }
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
