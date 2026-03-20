@@ -213,7 +213,7 @@ const ui = {
         if (tab === 'Mon compte') {
             const avatar = globalData.cards.find(c => c.id == currentUser.avatarCardId)?.img || "";
             area.innerHTML = `<div class="profile-header" style="text-align:center;">
-                <img src="${avatar}" style="width:150px; height:150px; object-fit:cover; border-radius:50%; border:2px solid var(--accent); background:#000;">
+                <img src="${avatar}" style="width:150px; height:150px; object-fit:cover; border-radius:10%; border:2px solid var(--accent); background:#000;">
                 <h2>${currentUser.id} (Nv. ${currentUser.level})</h2>
                 <div class="xp-bar-container"><div class="xp-fill" style="width:${currentUser.xp}%"></div></div>
                 <p>Vœux disponibles : ${currentUser.vows} ⭐</p>
