@@ -285,7 +285,7 @@ const ui = {
 
         // 2. On injecte les cartes à l'intérieur
         overlay.innerHTML = `
-            <div class="card-grid" style="justify-content: center; width: 80%;">
+            <div class="card-grid" style="display : flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 20px; width: 80%; max-width: 1200;">
                 ${data.obtainedCards.map(c => `
                     <div class="card card-anim rarity-${c.rarity}">
                         <img src="${c.img}">
@@ -293,7 +293,7 @@ const ui = {
                     </div>`).join('')}
             </div>
             <p style="color: white; margin-top: 30px; font-style: italic; opacity: 0.7;">
-                Cliquez n'importe où pour fermer
+                Suivant...
             </p>
         `;
 
