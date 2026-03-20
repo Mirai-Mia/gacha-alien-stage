@@ -126,14 +126,19 @@ const ui = {
             this.currentBannerIdx = (this.currentBannerIdx + 1) % active.length;
             this.loadTab('Bannières');
     },
-    
+
     prevBanner() {
         const active = globalData.banners.filter(b => b.active);
         this.currentBannerIdx = (this.currentBannerIdx - 1 + active.length) % active.length;
         this.loadTab('Bannières');
     },
 
-    
+    filters: {
+        rarity: "all",
+        search: "all",
+        owned: "all"
+    },
+
     async loadTab(tab) {
         await refreshData();
         const area = document.getElementById('content-area');
@@ -162,7 +167,7 @@ const ui = {
                     <p class="pity-info">Pity 5★ : ${currentUser.pity["5"] || 0} / 50</p>
                     <img src="${b.image}" class="banner-main-img" style="max-width:80%; border-radius:15px; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
                     
-                    <div style="margin-top:20px;">
+                    <div>
                         <button class="btn-roll" onclick="ui.doRoll(1, '${b.id}')">1 Vœu</button>
                         <button class="btn-roll" onclick="ui.doRoll(5, '${b.id}')">5 Vœux</button>
                     </div>
@@ -222,23 +227,39 @@ const ui = {
 
         if (tab === 'Collection' || tab === 'Ma collection') {
             const inv = currentUser.inventory || {};
+            
+            // LOGIQUE DE FILTRE
+            const filteredCards = globalData.cards.filter(c => {
+                const qty = inv[c.id] || 0;
+                const matchesRarity = this.filters.rarity === "all" || c.rarity == this.filters.rarity;
+                const matchesName = this.filters.search === "all" || c.name.includes(this.filters.search);
+                let matchesOwned = true;
+                if(this.filters.owned === "owned") matchesOwned = qty > 0;
+                if(this.filters.owned === "missing") matchesOwned = qty === 0;
+
+                return matchesRarity && matchesName && matchesOwned;
+            });
+
             area.innerHTML = `
-                <div class="collection-header">
-                    <h2>Ma Collection</h2>
-                    <p>Cartes débloquées : ${Object.keys(inv).length} / ${globalData.cards.length}</p>
+                <div class="collection-header" style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <h2>Ma Collection</h2>
+                        <p>Affichage de ${filteredCards.length} cartes</p>
+                    </div>
+                    <button class="btn-tab" onclick="ui.openFilterPopup()">🔍 Filtrer</button>
                 </div>
                 <div class="card-grid">
-                    ${globalData.cards.map(c => {
+                    ${filteredCards.map(c => {
                         const qty = inv[c.id] || 0;
                         const isLocked = qty === 0;
                         return `
                             <div class="card ${isLocked ? 'locked' : ''} rarity-${c.rarity}">
-                                <img src="${c.img}" style="${isLocked ? 'filter: grayscale(1) brightness(0.4);' : ''}">
+                                <img src="${c.img}">
                                 <div class="card-info" style="padding:10px; text-align:center;">
                                     <strong>${c.name}</strong><br>
                                     <span class="rarity-text">${c.rarity}★</span>
                                     ${qty > 1 ? `<div class="qty-badge" style="color:var(--accent)">x${qty}</div>` : ''}
-                                    ${!isLocked ? `<button onclick="ui.setAvatar('${c.id}')" style="margin-top:5px; font-size:0.7rem; cursor:pointer;">Avatar</button>` : ''}
+                                    ${!isLocked ? `<button onclick="ui.setAvatar('${c.id}')" style="margin-top:5px; font-size:0.7rem; cursor:pointer; background:none; border:1px solid var(--accent); color:var(--accent); border-radius:4px;">Avatar</button>` : ''}
                                 </div>
                             </div>`;
                     }).join('')}
@@ -380,7 +401,64 @@ const ui = {
         `;
         
         document.getElementById('nav-links').innerHTML = html;
-    }
+    },
+
+    openFilterPopup() {
+        const overlay = document.createElement('div');
+        overlay.className = "full-screen"; // On réutilise ta classe existante
+        overlay.style.zIndex = "20000";
+
+        overlay.innerHTML = `
+            <div class="auth-box" style="width: 400px; text-align: left;">
+                <h2 style="margin-top:0;">Filtrer la Collection</h2>
+                
+                <label>Rareté :</label>
+                <select id="filter-rarity" class="filter-input">
+                    <option value="all">Toutes</option>
+                    ${[1,2,3,4,5].map(n => `<option value="${n}" ${this.filters.rarity == n ? 'selected' : ''}>${n} ★</option>`).join('')}
+                </select>
+
+                <label>Personnage :</label>
+                <select id="filter-search" class="filter-input">
+                    <option value="all">Tous</option>
+                    ${['Mizi', 'Sua', 'Till', 'Ivan', 'Hyuna', 'Luka', 'Hyunwoo', 'Dewey', 'Isaac'].map(p => 
+                        `<option value="${p}" ${this.filters.search == p ? 'selected' : ''}>${p}</option>`).join('')}
+                </select>
+
+                <label>Statut :</label>
+                <select id="filter-owned" class="filter-input">
+                    <option value="all" ${this.filters.owned == 'all' ? 'selected' : ''}>Tout afficher</option>
+                    <option value="owned" ${this.filters.owned == 'owned' ? 'selected' : ''}>Possédées uniquement</option>
+                    <option value="missing" ${this.filters.owned == 'missing' ? 'selected' : ''}>Non possédées</option>
+                </select>
+
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button class="btn-save" style="flex:1;" id="apply-filters">Appliquer</button>
+                    <button class="btn-delete" style="flex:1;" id="reset-filters">Réinitialiser</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        // Actions
+        document.getElementById('apply-filters').onclick = () => {
+            this.filters.rarity = document.getElementById('filter-rarity').value;
+            this.filters.search = document.getElementById('filter-search').value;
+            this.filters.owned = document.getElementById('filter-owned').value;
+            overlay.remove();
+            this.loadTab('Collection');
+        };
+
+        document.getElementById('reset-filters').onclick = () => {
+            this.filters = { rarity: "all", search: "all", owned: "all" };
+            overlay.remove();
+            this.loadTab('Collection');
+        };
+
+        // Fermer si on clique à côté de la box
+        overlay.onclick = (e) => { if(e.target === overlay) overlay.remove(); };
+    },
 };
 
 window.onload = refreshData;
