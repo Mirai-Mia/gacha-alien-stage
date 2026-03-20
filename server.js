@@ -20,6 +20,7 @@ const User = mongoose.model('User', new mongoose.Schema({
     vows: { type: Number, default: 10 },
     xp: { type: Number, default: 0 },
     level: { type: Number, default: 1 },
+    pendingNotification: { type: String, default: null }, // Nouveau champ
     inventory: { type: Map, of: Number, default: {} },
     pity: { type: Map, of: Number, default: { "1":0, "2": 0, "3": 0, "4": 0, "5": 0 } },
     avatarCardId: String
@@ -58,6 +59,19 @@ app.post('/api/auth/register', async (req, res) => {
 
 app.post('/api/admin/update-user', async (req, res) => {
     const { updatedUser } = req.body;
+    const oldUser = await User.findOne({ id: updatedUser.id });
+    
+    if (oldUser) {
+        const diff = updatedUser.vows - oldUser.vows;
+        if (diff !== 0) {
+            const msg = diff > 0 
+                ? `✨ Vous avez reçu ${diff} vœux !` 
+                : `📉 Vos vœux ont été modifiés (${diff}).`;
+            
+            updatedUser.pendingNotification = msg;
+        }
+    }
+
     await User.findOneAndUpdate({ id: updatedUser.id }, updatedUser);
     res.json({ success: true });
 });
