@@ -725,3 +725,48 @@ button {
 }
 
 /* Fin de l'affichage des cartes */
+
+
+
+/* Debut Etoiles */
+
+/* --- EFFET PAILLETTES STELLAIRES (Twinkling Stars) --- */
+
+/* Conteneur des paillettes */
+.stars-container {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; /* Ne bloque pas le clic de fermeture */
+    overflow: hidden;
+    z-index: -1; /* Derrière les cartes, mais devant le fond noir */
+}
+
+/* Style de base d'une paillette */
+.star {
+    position: absolute;
+    background-color: white;
+    border-radius: 50%;
+    opacity: 0; /* Commence invisible */
+    box-shadow: 0 0 5px white; /* Petit halo lumineux */
+    animation: twinkle infinite ease-in-out;
+}
+
+/* Animation de scintillement : l'éclat augmente et diminue */
+@keyframes twinkle {
+    0%, 100% { transform: scale(0.3); opacity: 0; box-shadow: 0 0 2px white; }
+    50% { transform: scale(1); opacity: 0.8; box-shadow: 0 0 10px white; }
+}
+
+/* Optionnel : Paillettes dorées pour les 5 étoiles */
+.gacha-ultra-rare .star {
+    background-color: #f39c12;
+    box-shadow: 0 0 5px #f39c12;
+    animation-name: twinkle-gold;
+}
+
+@keyframes twinkle-gold {
+    0%, 100% { transform: scale(0.3); opacity: 0; box-shadow: 0 0 2px #f39c12; }
+    50% { transform: scale(1); opacity: 0.9; box-shadow: 0 0 15px #f39c12; }
+}
+
+/* Fin étoiles*/
