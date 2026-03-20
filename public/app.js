@@ -272,6 +272,44 @@ const ui = {
         };
 
         // 1. Affichage des cartes obtenues
+
+                // 1. On crée le conteneur plein écran (Overlay)
+        const overlay = document.createElement('div');
+        overlay.id = "gacha-overlay";
+        overlay.style = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.9); z-index: 10000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            cursor: pointer; animation: fadeIn 0.5s;
+        `;
+
+        // 2. On injecte les cartes à l'intérieur
+        overlay.innerHTML = `
+            <div class="card-grid" style="justify-content: center; width: 80%;">
+                ${data.obtainedCards.map(c => `
+                    <div class="card card-anim rarity-${c.rarity}">
+                        <img src="${c.img}">
+                        <p>${c.name} (${c.rarity}★)</p>
+                    </div>`).join('')}
+            </div>
+            <p style="color: white; margin-top: 30px; font-style: italic; opacity: 0.7;">
+                Cliquez n'importe où pour fermer
+            </p>
+        `;
+
+        // 3. Fermeture au clic
+        overlay.onclick = () => overlay.remove();
+
+        // 4. On l'ajoute au body
+        document.body.appendChild(overlay);
+
+        // 5. Effet Flash si 5★
+        if (data.obtainedCards.some(c => c.rarity === 5)) {
+            ui.createFlashEffect();
+        }
+
+        // ANCIEN affichage cartes
+        /*
         const resDiv = document.getElementById('results');
         resDiv.innerHTML = data.obtainedCards.map(c => `
             <div class="card card-anim rarity-${c.rarity}">
@@ -288,6 +326,7 @@ const ui = {
         if (pityDisplay) {
             pityDisplay.innerText = `Pity 5★ : ${currentUser.pity["5"] || 0} / 50`;
         };
+        */
 
         // On met à jour le nombre de vœux si tu as un affichage dans le header ou ailleurs
         // Si tu as un élément qui affiche les vœux dans l'onglet bannière, ajoute-le ici.
@@ -306,7 +345,7 @@ const ui = {
             left: 0;
             width: 100%;
             height: 100%;
-            background: radial-gradient(circle, rgba(0, 210, 255, 0.8) 0%, rgba(5, 10, 20, 0) 70%);
+            background: radial-gradient(circle, rgba(39, 13, 84, 0.8) 0%, rgba(5, 10, 20, 0) 70%);
             backdrop-filter: blur(5px);
             z-index: 9999;
             pointer-events: none;
@@ -314,7 +353,7 @@ const ui = {
             transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1);
         `;
         document.body.appendChild(flash);
-    
+
         // Apparition douce puis disparition lente
         requestAnimationFrame(() => {
             flash.style.opacity = "1";
