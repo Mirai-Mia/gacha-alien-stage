@@ -223,7 +223,19 @@ const ui = {
                 <h2>${currentUser.id} (Nv. ${currentUser.level})</h2>
                 <div class="xp-bar-container"><div class="xp-fill" style="width:${currentUser.xp}%"></div></div>
                 <p>Vœux disponibles : ${currentUser.vows} ⭐</p>
-            </div>`;
+            </div>
+            
+            <div class="card ${isLocked ? 'locked' : ''} rarity-${c.rarity}">
+               <img src="${c.img}" style="${isLocked ? 'filter: grayscale(1) brightness(0.4);' : ''}">
+                    <div class="card-info" style="padding:10px; text-align:center;">
+                        <strong>${c.name}</strong><br>
+                        <span class="rarity-text">${c.rarity}★</span>
+                        ${qty > 1 ? `<div class="qty-badge" style="color:var(--accent)">x${qty}</div>` : ''}
+                        ${!isLocked ? `<button onclick="ui.setAvatar('${c.id}')" style="margin-top:5px; font-size:0.7rem; cursor:pointer;">Avatar</button>` : ''}
+                    </div>
+            </div>`
+            
+            ;
         }
 
         if (tab === 'Collection' || tab === 'Ma collection') {
