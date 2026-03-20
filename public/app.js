@@ -156,7 +156,8 @@ const ui = {
                         <h3 style="margin:0; color:var(--accent)">Flux ${this.currentBannerIdx + 1} / ${active.length}</h3>
                         <button class="btn-save" onclick="ui.nextBanner()">Suivante ▶</button>
                     </div>
-                    
+
+                    <p>Vœux disponibles : ${currentUser.vows} ⭐</p>
                     <p class="pity-info">Pity 5★ : ${currentUser.pity["5"] || 0} / 50</p>
                     <img src="${b.image}" class="banner-main-img" style="max-width:85%; border-radius:15px; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
                     
