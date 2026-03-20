@@ -5,6 +5,7 @@ async function refreshData() {
     try {
         const res = await fetch('/api/data');
         globalData = await res.json();
+        
         const saved = localStorage.getItem('gacha_userId');
         if (saved && !currentUser) {
             const u = globalData.users.find(x => x.id === saved);
@@ -12,7 +13,7 @@ async function refreshData() {
         } else if (currentUser) {
             currentUser = globalData.users.find(x => x.id === currentUser.id);
         }
-    } catch (e) { console.error("Synchro impossible"); }
+    } catch (e) { console.error("Synchro impossible", e); }
 }
 
 const auth = {
@@ -157,7 +158,7 @@ const ui = {
                         <button class="btn-save" onclick="ui.nextBanner()">Suivante ▶</button>
                     </div>
 
-                    <p>Vœux disponibles : ${currentUser.vows} ⭐</p>
+                    <p id="vows-display">Vœux disponibles : ${currentUser.vows} ⭐</p>
                     <p class="pity-info">Pity 5★ : ${currentUser.pity["5"] || 0} / 50</p>
                     <img src="${b.image}" class="banner-main-img" style="max-width:85%; border-radius:15px; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
                     
@@ -263,11 +264,47 @@ const ui = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId: currentUser.id, count: n, bannerId: bid })
         });
+        
         const data = await res.json();
         if(data.error) return alert(data.error);
+        if (data.obtainedCards.some(c => c.rarity === 5)) {
+            ui.createFlashEffect();
+        };
+
+        // 1. Affichage des cartes obtenues
         const resDiv = document.getElementById('results');
-        resDiv.innerHTML = data.obtainedCards.map(c => `<div class="card card-anim rarity-${c.rarity}"><img src="${c.img}"><p>${c.name} (${c.rarity}★)</p></div>`).join('');
-        await refreshData();
+        resDiv.innerHTML = data.obtainedCards.map(c => `
+            <div class="card card-anim rarity-${c.rarity}">
+                <img src="${c.img}">
+                <p>${c.name} (${c.rarity}★)</p>
+            </div>`).join('');
+
+        // 2. Synchronisation des données locales
+        await refreshData(); 
+
+        // 3. MISE À JOUR EN DIRECT DE L'INTERFACE
+        // On met à jour le texte de la Pity
+        const pityDisplay = document.querySelector('.pity-info');
+        if (pityDisplay) {
+            pityDisplay.innerText = `Pity 5★ : ${currentUser.pity["5"] || 0} / 50`;
+        };
+
+        // On met à jour le nombre de vœux si tu as un affichage dans le header ou ailleurs
+        // Si tu as un élément qui affiche les vœux dans l'onglet bannière, ajoute-le ici.
+        const vowsDisplay = document.getElementById('vows-display');
+        if (vowsDisplay) {
+            vowsDisplay.innerText = `Vœux disponibles : ${currentUser.vows} ⭐`;
+        }
+    },
+
+    createFlashEffect() {
+        const flash = document.createElement('div');
+        flash.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:9999; pointer-events:none; transition: opacity 0.6s ease-out;";
+        document.body.appendChild(flash);
+        setTimeout(() => {
+            flash.style.opacity = "0";
+            setTimeout(() => flash.remove(), 600);
+        }, 50);
     },
 
     renderSidebar(role) {
