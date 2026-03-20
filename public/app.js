@@ -323,7 +323,7 @@ const ui = {
                 setTimeout(() => flash.remove(), 800);
             }, 150); // Reste visible un court instant avant de s'effacer
         });
-    }
+    },
 
     renderSidebar(role) {
         const tabs = role === 'admin' 
