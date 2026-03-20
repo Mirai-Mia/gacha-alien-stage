@@ -133,6 +133,7 @@ const ui = {
         this.loadTab('Bannières');
     },
 
+    searchQuery: "",
     filters: {
         rarity: "all",
         search: "all",
@@ -248,6 +249,13 @@ const ui = {
                 </div>
                 <button class="btn-tab" onclick="ui.openFilterPopup()">🔍 Filtrer</button>
             </div>
+            <div style="margin-top:20px; position:relative;">
+                <input type="text" id="card-search-bar" 
+                    placeholder="Rechercher une carte par nom..." 
+                    value="${this.searchQuery}"
+                    style="width:100%; padding:12px 40px 12px 15px; background:rgba(0,0,0,0.3); border:1px solid var(--border); border-radius:10px; color:white; outline:none;">
+                <span style="position:absolute; right:15px; top:12px; opacity:0.5;">🔍</span>
+            </div>
             <div class="card-grid">
                 ${filteredCards.map(c => {
                     const qty = inv[c.id] || 0;
@@ -264,6 +272,18 @@ const ui = {
                         </div>`;
                 }).join('')}
             </div>`;
+
+            // ÉCOUTEUR POUR LE TEMPS RÉEL
+            const searchBar = document.getElementById('card-search-bar');
+            searchBar.focus(); // Garde le focus pour taper sans interruption
+            
+            // On replace le curseur à la fin du texte
+            searchBar.setSelectionRange(searchBar.value.length, searchBar.value.length);
+
+            searchBar.oninput = (e) => {
+                this.searchQuery = e.target.value;
+                this.loadTab('Collection'); // Relance le rendu avec le nouveau filtre
+            };
     }
     },
 
