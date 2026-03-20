@@ -299,13 +299,31 @@ const ui = {
 
     createFlashEffect() {
         const flash = document.createElement('div');
-        flash.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:9999; pointer-events:none; transition: opacity 0.6s ease-out;";
+        // On utilise un dégradé radial bleu clair vers transparent
+        flash.style = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(0, 210, 255, 0.8) 0%, rgba(5, 10, 20, 0) 70%);
+            backdrop-filter: blur(5px);
+            z-index: 9999;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+        `;
         document.body.appendChild(flash);
-        setTimeout(() => {
-            flash.style.opacity = "0";
-            setTimeout(() => flash.remove(), 600);
-        }, 50);
-    },
+    
+        // Apparition douce puis disparition lente
+        requestAnimationFrame(() => {
+            flash.style.opacity = "1";
+            setTimeout(() => {
+                flash.style.opacity = "0";
+                setTimeout(() => flash.remove(), 800);
+            }, 150); // Reste visible un court instant avant de s'effacer
+        });
+    }
 
     renderSidebar(role) {
         const tabs = role === 'admin' 
