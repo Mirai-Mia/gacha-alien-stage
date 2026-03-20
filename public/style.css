@@ -513,7 +513,6 @@ button {
     position: relative;
     z-index: 10; 
     display: flex;
-    flex-wrap: wrap;
     justify-content: center;
     gap: 20px;
     width: 90%;
