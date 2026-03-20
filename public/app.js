@@ -133,12 +133,6 @@ const ui = {
         this.loadTab('Bannières');
     },
 
-    filters: {
-        rarity: "all",
-        search: "all",
-        owned: "all"
-    },
-
     searchQuery: "", 
     filters: {
         rarity: "all",
